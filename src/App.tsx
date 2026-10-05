@@ -5,6 +5,7 @@ import { POSTHOG_MCP_ANALYTICS, AUTHOR_URL, POSTHOG_MCP_ANALYTICS_DOCS, External
 import { CHAPTERS } from './player'
 import { FPS, FRAMES } from './timeline'
 import Video from './Video'
+import ViewCount from './ViewCount'
 
 const params = new URLSearchParams(window.location.search)
 const embed = params.get('embed') === '1'
@@ -68,6 +69,7 @@ export default function App(): JSX.Element {
                             Lucas Faria
                         </ExternalLink>
                         , who works on MCP analytics at PostHog.
+                        <ViewCount />
                     </p>
                 </div>
                 <div className="flex items-center gap-2">

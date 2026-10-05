@@ -1,4 +1,5 @@
-const ENDPOINT = 'https://mcp-analytics-views.lucasheriques.workers.dev/view'
+const WORKER = 'https://mcp-analytics-views.lucasheriques.workers.dev'
+const ENDPOINT = `${WORKER}/view`
 const COUNTED_KEY = 'mcp-analytics-view-counted'
 
 const hostnameOf = (url: string): string => {
@@ -32,4 +33,16 @@ export function recordView(): void {
         keepalive: true,
         body: JSON.stringify({ kind: embed ? 'embed' : 'page', host: embed ? hostnameOf(document.referrer) : '' }),
     }).catch(() => undefined)
+}
+
+// The total across pages and embeds, or null when the Worker cannot be reached (for example from localhost, which it does not allow).
+export async function fetchViewCount(): Promise<number | null> {
+    try {
+        const response = await fetch(`${WORKER}/count`)
+        if (!response.ok) return null
+        const { views } = (await response.json()) as { views?: unknown }
+        return typeof views === 'number' ? views : null
+    } catch {
+        return null
+    }
 }
