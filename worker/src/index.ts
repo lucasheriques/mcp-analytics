@@ -5,9 +5,9 @@ interface Env {
 
 const SITE_ORIGIN = 'https://lucasheriques.github.io'
 const HOSTNAME = /^[a-z0-9.-]{1,100}$/
-const COUNT_CACHE_SECONDS = 300
+const COUNT_CACHE_SECONDS = 60
 // Raise this after clearing the table so no data center keeps serving the old total.
-const CACHE_VERSION = 2
+const CACHE_VERSION = 4
 // A hard ceiling on counted views per day. It bounds how far anyone can inflate the numbers or spend the free database quota.
 const DAILY_CAP = 5000
 
