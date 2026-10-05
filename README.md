@@ -71,7 +71,7 @@ npx wrangler d1 execute mcp-analytics-views --remote --command "SELECT kind, SUM
 
 - **Set it up again:** `npm install`, `npx wrangler d1 create mcp-analytics-views`, put the new `database_id` in `wrangler.toml`, then `npx wrangler d1 execute mcp-analytics-views --remote --file=schema.sql` and `npx wrangler deploy`. Put the Worker URL in `src/views.ts`.
 - **Public count:** `GET /count` returns the totals (`{"views": 1234, "watched": 300}`) with CORS for the site only, and the Worker caches it for five minutes. The page shows it from the first view. Raise `MIN_VIEWS_SHOWN` in `src/ViewCount.tsx` to hide it until there are more.
-- **Abuse limits:** the Worker accepts counts only from `https://lucasheriques.github.io`, applies Cloudflare's per-IP rate limit (600 a minute, high enough for a whole office opening a shared link together, and loose and approximate anyway), and stops counting after 5,000 views a day (`DAILY_CAP`). Anyone can still send fake counts by hand, so the number is a rough count, not proof.
+- **Abuse limits:** the Worker accepts counts only from `https://lucasheriques.github.io`, applies Cloudflare's per-IP rate limit (600 a minute, high enough for a whole office opening a shared link together, and loose and approximate anyway), and stops counting after 50,000 events a day (`DAILY_CAP`, page, embed, and watched counts together). Anyone can still send fake counts by hand, so the number is a rough count, not proof.
 
 ## Develop
 

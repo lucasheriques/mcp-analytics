@@ -8,8 +8,9 @@ const HOSTNAME = /^[a-z0-9.-]{1,100}$/
 const COUNT_CACHE_SECONDS = 60
 // Raise this after clearing the table so no data center keeps serving the old total.
 const CACHE_VERSION = 4
-// A hard ceiling on counted views per day. It bounds how far anyone can inflate the numbers or spend the free database quota.
-const DAILY_CAP = 5000
+// A hard ceiling on counted events per day (page, embed, and watched together), about half of Cloudflare's free-plan limit of 100,000
+// requests a day. It bounds how far anyone can inflate the numbers or spend the free quota.
+const DAILY_CAP = 50000
 
 // The Workers runtime adds `default`, the cache shared by every request in this data center, to the standard CacheStorage.
 const edgeCache = (): Cache => (caches as CacheStorage & { default: Cache }).default
