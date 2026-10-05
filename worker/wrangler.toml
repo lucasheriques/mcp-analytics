@@ -10,4 +10,4 @@ database_id = "1820cda2-f0f8-45f0-900b-378d5b7a8c0d"
 [[ratelimits]]
 name = "VIEW_LIMITER"
 namespace_id = "1001"
-simple = { limit = 30, period = 60 }
+simple = { limit = 600, period = 60 }
