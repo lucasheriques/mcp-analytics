@@ -46,7 +46,7 @@ export default function Comments(): JSX.Element {
         observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] })
         return () => {
             observer.disconnect()
-            container.current?.replaceChildren()
+            container.current?.querySelectorAll('script, .giscus, iframe').forEach((node) => node.remove())
         }
     }, [])
 
@@ -55,7 +55,16 @@ export default function Comments(): JSX.Element {
             <h2 id="comments-heading" className="text-lg font-bold">
                 Comments
             </h2>
-            <div ref={container} />
+            {/* The empty widget is 372px tall. Reserving that height means it fills a space that already exists instead of pushing
+                the sections below it down when it loads. */}
+            <div ref={container} className="relative min-h-[372px] [&_.giscus]:relative">
+                <div
+                    aria-hidden="true"
+                    className="absolute inset-0 flex items-center justify-center rounded-lg border border-line bg-subtle text-sm text-muted-fg"
+                >
+                    Loading comments…
+                </div>
+            </div>
         </section>
     )
 }
