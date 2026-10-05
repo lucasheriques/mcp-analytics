@@ -23,6 +23,10 @@ Press "Copy embed code" in the "Embed it on your site" section of the page, or p
 
 Keep `allow="fullscreen"`. Without it the fullscreen button does nothing inside the iframe. Sound starts after the viewer's first click, because browsers block autoplay with sound.
 
+## Brand
+
+The page uses the [`@posthog/brand`](https://github.com/PostHog/brand) package instead of hand-copied values. The package supplies the colors (`tangerine` is the accent), the RoundHog typeface (Regular 400 and SemiBold 700 only, about 240 KB), the `<Logo>`, and the wizard and megaphone hedgehogs. `src/brand.ts` injects the colors and font faces, and `src/index.css` reads the colors as `--posthog-*` custom properties with fallbacks. The neutrals (`#1d1f27` ink, `#f4f3ee` off-white, `#e5e2d9` line, `#5f6672` muted) come from the brand site's own theme. The brand site is light only, so the dark theme's neutrals are derived from its ink color. The pixel video keeps its own pixel palette, and the comment theme in `public/giscus-*.css` repeats the same values, because it loads from a different origin.
+
 ## Download
 
 The page has a "Download MP4" button for the 1080p video (36 MB). It points at `releases/latest/download/mcp-analytics-an-8-bit-tale.mp4`, so the file lives in a GitHub Release and not in the repo. It is H.264 and AAC in an MP4 with the index at the front (so it can start playing while it downloads). To replace it, publish a new release with a file of the same name.

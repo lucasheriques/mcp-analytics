@@ -16,7 +16,7 @@ const WATCHED_AFTER_SECONDS = 10
 const VOLUME_STEP = 0.1
 
 const iconButton =
-    'flex size-9 items-center justify-center rounded border border-line text-fg hover:border-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand'
+    'flex size-9 items-center justify-center rounded-lg border border-line text-fg hover:border-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand'
 
 interface VideoProps {
     initialFrame?: number
@@ -163,7 +163,7 @@ export default function Video({ initialFrame = 0, fill = false }: VideoProps): J
     return (
         <div
             ref={root}
-            className={`@container flex flex-col rounded border border-line bg-surface text-fg outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand ${
+            className={`@container flex flex-col rounded-lg border border-line bg-surface text-fg outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand ${
                 filling ? 'h-full' : ''
             }`}
         >
@@ -236,7 +236,7 @@ export default function Video({ initialFrame = 0, fill = false }: VideoProps): J
                     <button
                         type="button"
                         onClick={() => player.current?.toggle()}
-                        className="flex h-9 items-center gap-1.5 rounded bg-brand px-3 text-sm font-semibold text-on-brand hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fg"
+                        className="flex h-9 items-center gap-1.5 rounded-lg bg-brand px-3 text-sm font-semibold text-on-brand hover:bg-brand-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fg"
                     >
                         {status === 'playing' || status === 'loading' ? (
                             <IconPause className="size-4" />
@@ -265,7 +265,7 @@ export default function Video({ initialFrame = 0, fill = false }: VideoProps): J
                             aria-label="Playback speed"
                             value={speed}
                             onChange={(e) => player.current?.setSpeed(Number(e.target.value) as Speed)}
-                            className="h-9 rounded border border-line bg-surface px-2 text-sm text-fg hover:border-hover"
+                            className="h-9 rounded-lg border border-line bg-surface px-2 text-sm text-fg hover:border-hover"
                         >
                             {SPEEDS.map((s) => (
                                 <option key={s} value={s}>

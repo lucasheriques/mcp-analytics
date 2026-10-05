@@ -1,18 +1,19 @@
 @import url('https://giscus.app/themes/light.css');
 
+/* The brand site's neutrals and the brand package's tangerine. Keep these in step with src/index.css. */
 main {
-    --color-canvas-default: #fdfdf8;
-    --color-canvas-subtle: #f1f1e8;
-    --color-canvas-inset: #f1f1e8;
-    --color-fg-default: #151515;
-    --color-fg-muted: #565951;
-    --color-border-default: #bfc1b7;
-    --color-border-muted: #dcded4;
-    --color-accent-fg: #f54e00;
-    --color-accent-emphasis: #f54e00;
-    --color-btn-primary-bg: #f54e00;
-    --color-btn-primary-hover-bg: #d94400;
-    --color-btn-primary-border: #f54e00;
-    --color-btn-primary-text: #ffffff;
+    --color-canvas-default: #ffffff;
+    --color-canvas-subtle: #f4f3ee;
+    --color-canvas-inset: #f4f3ee;
+    --color-fg-default: #1d1f27;
+    --color-fg-muted: #5f6672;
+    --color-border-default: #e5e2d9;
+    --color-border-muted: #efece4;
+    --color-accent-fg: #ff5c1c;
+    --color-accent-emphasis: #ff5c1c;
+    --color-btn-primary-bg: #ff5c1c;
+    --color-btn-primary-hover-bg: #ff4800;
+    --color-btn-primary-border: #ff5c1c;
+    --color-btn-primary-text: #1d1f27;
     font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
 }

@@ -22,7 +22,7 @@ const ChapterCard = React.memo(function ChapterCard({ chapter, active, progress,
             type="button"
             aria-current={active}
             onClick={() => onSelect(chapter.start)}
-            className={`flex flex-col overflow-hidden rounded border bg-surface text-left text-fg ${
+            className={`flex flex-col overflow-hidden rounded-lg border bg-surface text-left text-fg ${
                 active ? 'border-brand' : 'border-line hover:border-hover'
             }`}
         >
@@ -33,7 +33,7 @@ const ChapterCard = React.memo(function ChapterCard({ chapter, active, progress,
                     height={180}
                     className="aspect-video w-full [image-rendering:pixelated]"
                 />
-                <span className="absolute bottom-1 right-1 rounded bg-black/70 px-1 text-xs tabular-nums text-white">
+                <span className="absolute bottom-1 right-1 rounded-lg bg-black/70 px-1 text-xs tabular-nums text-white">
                     {formatTime(chapter.start)}
                 </span>
             </span>

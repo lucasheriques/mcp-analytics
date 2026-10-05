@@ -15,7 +15,7 @@ export default function ThemeToggle(): JSX.Element {
                 setTheme(next)
                 setCurrent(next)
             }}
-            className="flex size-9 items-center justify-center rounded border border-line hover:border-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand"
+            className="flex size-9 items-center justify-center rounded-lg border border-line hover:border-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand"
         >
             {theme === 'dark' ? <IconSun className="size-5" /> : <IconMoon className="size-5" />}
         </button>

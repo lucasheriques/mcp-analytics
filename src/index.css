@@ -1,33 +1,46 @@
 @import 'tailwindcss';
 
 :root {
-    --surface: #fdfdf8;
-    --fg: #151515;
-    --muted-fg: #565951;
-    --line: #bfc1b7;
-    --hover: #7d8075;
-    --brand: #f54e00;
-    --on-brand: #151515;
+    /* The brand site's own neutrals and the brand package's tangerine. The --posthog-* values are injected by brand.ts. */
+    --surface: #ffffff;
+    --subtle: #f4f3ee;
+    --fg: #1d1f27;
+    --muted-fg: #5f6672;
+    --line: #e5e2d9;
+    --hover: #b4b0a2;
+    --brand: var(--posthog-tangerine, #ff5c1c);
+    --brand-hover: var(--posthog-tangerine-darker, #ff4800);
+    --on-brand: #1d1f27;
 }
 
+/* The brand site is light only, so the dark neutrals are derived from its ink color. */
 :root[data-theme='dark'] {
-    --surface: #151515;
-    --fg: #eeefe9;
-    --muted-fg: #a6a89f;
-    --line: #3c3d38;
-    --hover: #6f716a;
-    --brand: #f54e00;
-    --on-brand: #151515;
+    --surface: #1d1f27;
+    --subtle: #262933;
+    --fg: #f4f3ee;
+    --muted-fg: #a2a7b2;
+    --line: #3a3d49;
+    --hover: #5f6672;
+}
+
+@custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
+
+/* RoundHog is the brand typeface. brand.ts loads its faces, and the system fonts cover the moment before they arrive. */
+@theme {
+    --font-sans: 'RoundHog', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
 }
 
 @theme inline {
     --color-surface: var(--surface);
+    --color-subtle: var(--subtle);
     --color-fg: var(--fg);
     --color-muted-fg: var(--muted-fg);
     --color-line: var(--line);
     --color-hover: var(--hover);
     --color-brand: var(--brand);
+    --color-brand-hover: var(--brand-hover);
     --color-on-brand: var(--on-brand);
+    --radius-lg: 10px;
 }
 
 html,
@@ -40,11 +53,5 @@ body {
     margin: 0;
     background: var(--surface);
     color: var(--fg);
-    font-family:
-        ui-sans-serif,
-        system-ui,
-        -apple-system,
-        'Segoe UI',
-        Roboto,
-        sans-serif;
+    font-family: var(--font-sans);
 }
