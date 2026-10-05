@@ -250,10 +250,13 @@ export class Player {
             const audio: AudioGraph = { ctx, sfxBus, musicBus, sfx: new Map() }
             this.applyGains(audio)
             const files = [...new Set((SFX as Cue[]).map((c) => c.file))]
+            // Looping beds stay WAV: AAC adds silent padding that would show up as a gap on every repeat.
+            const looped = new Set((SFX as Cue[]).filter((c) => c.until).map((c) => c.file))
+            const assetFor = (f: string): string => (looped.has(f) ? f : f.replace(/\.wav$/, '.m4a'))
             try {
                 await Promise.all(
                     files.map(async (f) => {
-                        const res = await fetch(`${ASSETS}/sfx/${f}`)
+                        const res = await fetch(`${ASSETS}/sfx/${assetFor(f)}`)
                         if (!res.ok) return console.warn('missing sfx', f)
                         audio.sfx.set(f, await ctx.decodeAudioData(await res.arrayBuffer()))
                     })

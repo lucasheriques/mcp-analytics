@@ -1,8 +1,9 @@
 import React from 'react'
 import Comments from './Comments'
 import EmbedSection from './EmbedSection'
+import InstallSection from './InstallSection'
 import { IconGitHub } from './icons'
-import { POSTHOG_MCP_ANALYTICS, AUTHOR_URL, POSTHOG_MCP_ANALYTICS_DOCS, ExternalLink, REPO_URL } from './links'
+import { POSTHOG_MCP_ANALYTICS, AUTHOR_URL, ExternalLink, REPO_URL } from './links'
 import { CHAPTERS } from './player'
 import { FPS, FRAMES } from './timeline'
 import Video from './Video'
@@ -65,6 +66,7 @@ export default function App(): JSX.Element {
                 </div>
             </header>
             <Video initialFrame={initialFrame()} />
+            <InstallSection />
             <Comments />
             <EmbedSection />
             <footer className="flex flex-col gap-1 border-t border-line pt-4 text-sm text-muted-fg">
@@ -76,10 +78,6 @@ export default function App(): JSX.Element {
                     Curious about the product? Read about{' '}
                     <ExternalLink href={POSTHOG_MCP_ANALYTICS} className="underline hover:text-fg">
                         PostHog MCP analytics
-                    </ExternalLink>{' '}
-                    or go straight to the{' '}
-                    <ExternalLink href={POSTHOG_MCP_ANALYTICS_DOCS} className="underline hover:text-fg">
-                        docs
                     </ExternalLink>
                     . The{' '}
                     <ExternalLink href={REPO_URL} className="underline hover:text-fg">
