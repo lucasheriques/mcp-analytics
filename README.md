@@ -25,7 +25,7 @@ Keep `allow="fullscreen"`. Without it the fullscreen button does nothing inside 
 
 ## Download
 
-The page has "Download MP4" buttons for 1080p (36 MB) and 4K (39 MB). They point at `releases/latest/download/mcp-analytics-an-8-bit-tale.mp4` and `…-4k.mp4`, so the files live in a GitHub Release and not in the repo. Both are H.264 and AAC in an MP4 with the index at the front (so it can start playing while it downloads). To replace them, publish a new release with files of the same names.
+The page has a "Download MP4" button for the 1080p video (36 MB). It points at `releases/latest/download/mcp-analytics-an-8-bit-tale.mp4`, so the file lives in a GitHub Release and not in the repo. It is H.264 and AAC in an MP4 with the index at the front (so it can start playing while it downloads). To replace it, publish a new release with a file of the same name.
 
 ## Keyboard shortcuts
 

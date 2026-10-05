@@ -5,6 +5,8 @@ import InstallSection from './InstallSection'
 import { IconGitHub } from './icons'
 import { POSTHOG_MCP_ANALYTICS, AUTHOR_URL, ExternalLink, REPO_URL } from './links'
 import { CHAPTERS } from './player'
+import { initTheme } from './theme'
+import ThemeToggle from './ThemeToggle'
 import { FPS, FRAMES } from './timeline'
 import Video from './Video'
 import ViewCount from './ViewCount'
@@ -12,8 +14,7 @@ import ViewCount from './ViewCount'
 const params = new URLSearchParams(window.location.search)
 const embed = params.get('embed') === '1'
 
-const theme = params.get('theme') ?? (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
-document.documentElement.dataset.theme = theme === 'dark' ? 'dark' : 'light'
+initTheme()
 
 // ?chapter=3 starts at that chapter, ?t=90 starts at 90 seconds. Neither autoplays, because browsers block sound until a click.
 function initialFrame(): number {
@@ -57,6 +58,7 @@ export default function App(): JSX.Element {
                         <IconGitHub className="size-4" />
                         GitHub
                     </ExternalLink>
+                    <ThemeToggle />
                     <ExternalLink
                         href={POSTHOG_MCP_ANALYTICS}
                         className="rounded bg-brand px-3 py-1.5 text-sm font-semibold text-on-brand hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fg"
@@ -77,9 +79,9 @@ export default function App(): JSX.Element {
                     </ExternalLink>
                     . The{' '}
                     <ExternalLink href={REPO_URL} className="underline hover:text-fg">
-                        source is on GitHub
-                    </ExternalLink>
-                    .
+                        code behind this video
+                    </ExternalLink>{' '}
+                    is on GitHub.
                 </p>
             </footer>
         </main>
