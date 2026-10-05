@@ -11,7 +11,7 @@ const LEVEL_NAMES = [
     'Your turn',
 ]
 
-export const SPEEDS = [1, 1.25, 1.5] as const
+export const SPEEDS = [1, 1.25, 1.5, 1.75, 2] as const
 export type Speed = (typeof SPEEDS)[number]
 type Status = 'paused' | 'loading' | 'playing' | 'ended'
 

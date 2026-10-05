@@ -70,10 +70,6 @@ export default function App(): JSX.Element {
             <Comments />
             <EmbedSection />
             <footer className="flex flex-col gap-1 border-t border-line pt-4 text-sm text-muted-fg">
-                <p className="hidden sm:block">
-                    Keyboard: Space plays, F goes fullscreen, M mutes, left and right skip, up and down change the
-                    volume, and 1 to 9 jump to 10% to 90%.
-                </p>
                 <p>
                     Curious about the product? Read about{' '}
                     <ExternalLink href={POSTHOG_MCP_ANALYTICS} className="underline hover:text-fg">

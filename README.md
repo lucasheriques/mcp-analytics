@@ -23,6 +23,20 @@ Press "Copy embed code" in the "Embed it on your site" section of the page, or p
 
 Keep `allow="fullscreen"`. Without it the fullscreen button does nothing inside the iframe. Sound starts after the viewer's first click, because browsers block autoplay with sound.
 
+## Keyboard shortcuts
+
+They work anywhere on the page, except while typing in a text field, and a focused button keeps Space and a focused slider keeps the arrow keys.
+
+| Key | Action |
+| --- | --- |
+| Space | Play or pause |
+| F | Fullscreen |
+| M | Mute |
+| Left, Right | Skip 5 seconds |
+| Up, Down | Volume |
+| 0 to 9 | Jump to 0% to 90% of the video |
+| , and . | Step one frame back or forward |
+
 ## URL parameters
 
 | Parameter | Effect |
