@@ -1,6 +1,6 @@
 import React from 'react'
 import CopyButton from './CopyButton'
-import { VIDEO_DOWNLOAD_URL } from './links'
+import { VIDEO_DOWNLOAD_4K_URL, VIDEO_DOWNLOAD_URL } from './links'
 
 const snippet = (): string => {
     const src = `${location.origin}${location.pathname}?embed=1`
@@ -18,7 +18,7 @@ export default function EmbedSection(): JSX.Element {
             <p className="text-muted-fg">
                 Paste this into any page. Keep <code>allow="fullscreen"</code>, or fullscreen will not work inside the
                 iframe. Add <code>&amp;chapter=3</code> to start at a level, or <code>&amp;theme=dark</code> to force a
-                theme. Or download the MP4 (1080p, 36 MB) to share it anywhere else.
+                theme. Or download the MP4 to share it anywhere else: 1080p is 36 MB and 4K is 39 MB.
             </p>
             <pre className="overflow-x-auto rounded border border-line bg-surface p-3 text-xs">
                 <code>{code}</code>
@@ -42,7 +42,14 @@ export default function EmbedSection(): JSX.Element {
                     download
                     className="rounded border border-line px-3 py-1.5 text-sm font-semibold hover:border-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand"
                 >
-                    Download MP4
+                    Download MP4 (1080p)
+                </a>
+                <a
+                    href={VIDEO_DOWNLOAD_4K_URL}
+                    download
+                    className="rounded border border-line px-3 py-1.5 text-sm font-semibold hover:border-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand"
+                >
+                    Download MP4 (4K)
                 </a>
             </div>
         </section>

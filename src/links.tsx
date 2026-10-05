@@ -6,6 +6,7 @@ export const AUTHOR_URL = 'https://github.com/lucasheriques'
 export const REPO_URL = 'https://github.com/lucasheriques/mcp-analytics'
 // A release asset keeps the 36 MB file out of the repo. To replace it, publish a new release with a file of the same name.
 export const VIDEO_DOWNLOAD_URL = `${REPO_URL}/releases/latest/download/mcp-analytics-an-8-bit-tale.mp4`
+export const VIDEO_DOWNLOAD_4K_URL = `${REPO_URL}/releases/latest/download/mcp-analytics-an-8-bit-tale-4k.mp4`
 export const SETUP_COMMAND = 'npx -y @posthog/wizard@latest mcp-analytics'
 
 // Opens in a new tab so it also works from inside an iframe.
