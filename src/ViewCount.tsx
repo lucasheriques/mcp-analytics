@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react'
 import { fetchViewCount } from './views'
 
-// A small number reads as an empty room, so the count appears once there are enough views for it to mean something.
-const MIN_VIEWS_SHOWN = 25
+// Raise this to hide the count until there are enough views for it to mean something.
+const MIN_VIEWS_SHOWN = 1
 
 export default function ViewCount(): JSX.Element | null {
     const [views, setViews] = useState<number | null>(null)
@@ -12,5 +12,10 @@ export default function ViewCount(): JSX.Element | null {
     }, [])
 
     if (views === null || views < MIN_VIEWS_SHOWN) return null
-    return <> · {new Intl.NumberFormat('en').format(views)} views</>
+    return (
+        <>
+            {' '}
+            · {new Intl.NumberFormat('en').format(views)} {views === 1 ? 'view' : 'views'}
+        </>
+    )
 }

@@ -1,5 +1,6 @@
-import React, { useEffect, useState } from 'react'
+import React from 'react'
 import Comments from './Comments'
+import EmbedSection from './EmbedSection'
 import { IconGitHub } from './icons'
 import { POSTHOG_MCP_ANALYTICS, AUTHOR_URL, POSTHOG_MCP_ANALYTICS_DOCS, ExternalLink, REPO_URL } from './links'
 import { CHAPTERS } from './player'
@@ -19,31 +20,6 @@ function initialFrame(): number {
     if (params.has('chapter') && CHAPTERS[chapter]) return CHAPTERS[chapter].start
     const seconds = Number(params.get('t'))
     return params.has('t') && seconds > 0 ? Math.min(FRAMES - 1, Math.round(seconds * FPS)) : 0
-}
-
-const embedSnippet = (): string => {
-    const src = `${location.origin}${location.pathname}?embed=1`
-    return `<iframe src="${src}" title="MCP analytics: an 8-bit tale" width="960" height="540" style="border:0;width:100%;aspect-ratio:16/9" allow="fullscreen" allowfullscreen loading="lazy"></iframe>`
-}
-
-function EmbedButton(): JSX.Element {
-    const [copied, setCopied] = useState(false)
-
-    useEffect(() => {
-        if (!copied) return
-        const timer = setTimeout(() => setCopied(false), 2000)
-        return () => clearTimeout(timer)
-    }, [copied])
-
-    return (
-        <button
-            type="button"
-            onClick={() => void navigator.clipboard.writeText(embedSnippet()).then(() => setCopied(true))}
-            className="rounded border border-line px-3 py-1.5 text-sm font-semibold hover:border-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand"
-        >
-            {copied ? 'Copied the iframe code' : 'Copy embed code'}
-        </button>
-    )
 }
 
 export default function App(): JSX.Element {
@@ -80,7 +56,12 @@ export default function App(): JSX.Element {
                         <IconGitHub className="size-4" />
                         GitHub
                     </ExternalLink>
-                    <EmbedButton />
+                    <a
+                        href="#embed"
+                        className="rounded border border-line px-3 py-1.5 text-sm font-semibold hover:border-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand"
+                    >
+                        Embed
+                    </a>
                     <ExternalLink
                         href={POSTHOG_MCP_ANALYTICS}
                         className="rounded bg-brand px-3 py-1.5 text-sm font-semibold text-on-brand hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fg"
@@ -90,6 +71,7 @@ export default function App(): JSX.Element {
                 </div>
             </header>
             <Video initialFrame={initialFrame()} />
+            <EmbedSection />
             <Comments />
             <footer className="flex flex-col gap-1 border-t border-line pt-4 text-sm text-muted-fg">
                 <p>
