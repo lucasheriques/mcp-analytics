@@ -14,6 +14,9 @@ const GISCUS = {
     'data-loading': 'lazy',
 }
 
+// giscus loads a theme from an absolute https URL, so this always points at the deployed CSS in public/.
+const THEME_BASE = 'https://lucasheriques.github.io/mcp-analytics/'
+
 // Comments live in this repo's GitHub Discussions through giscus. Readers sign in with GitHub to comment.
 export default function Comments(): JSX.Element {
     const container = useRef<HTMLDivElement>(null)
@@ -24,7 +27,10 @@ export default function Comments(): JSX.Element {
         script.async = true
         script.crossOrigin = 'anonymous'
         for (const [name, value] of Object.entries(GISCUS)) script.setAttribute(name, value)
-        script.setAttribute('data-theme', document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light')
+        script.setAttribute(
+            'data-theme',
+            `${THEME_BASE}giscus-${document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light'}.css`
+        )
         container.current?.append(script)
         return () => {
             container.current?.replaceChildren()

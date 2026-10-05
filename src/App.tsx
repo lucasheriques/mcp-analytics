@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import Comments from './Comments'
 import { IconGitHub } from './icons'
-import { POSTHOG_MCP_ANALYTICS, POSTHOG_MCP_ANALYTICS_DOCS, ExternalLink, REPO_URL } from './links'
+import { POSTHOG_MCP_ANALYTICS, AUTHOR_URL, POSTHOG_MCP_ANALYTICS_DOCS, ExternalLink, REPO_URL } from './links'
 import { CHAPTERS } from './player'
 import { FPS, FRAMES } from './timeline'
 import Video from './Video'
@@ -61,6 +61,13 @@ export default function App(): JSX.Element {
                     <h1 className="text-2xl font-bold leading-tight">MCP analytics: an 8-bit tale</h1>
                     <p className="text-muted-fg">
                         A four-minute pixel-art story about product analytics for AI agents.
+                    </p>
+                    <p className="text-sm text-muted-fg">
+                        Made by{' '}
+                        <ExternalLink href={AUTHOR_URL} className="underline hover:text-fg">
+                            Lucas Faria
+                        </ExternalLink>
+                        , who works on MCP analytics at PostHog.
                     </p>
                 </div>
                 <div className="flex items-center gap-2">

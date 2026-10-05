@@ -2,6 +2,7 @@ import React from 'react'
 
 export const POSTHOG_MCP_ANALYTICS = 'https://posthog.com/mcp-analytics'
 export const POSTHOG_MCP_ANALYTICS_DOCS = 'https://posthog.com/docs/mcp-analytics'
+export const AUTHOR_URL = 'https://github.com/lucasheriques'
 export const REPO_URL = 'https://github.com/lucasheriques/mcp-analytics'
 export const SETUP_COMMAND = 'npx -y @posthog/wizard@latest mcp-analytics'
 
