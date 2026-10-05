@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { fetchViewCount } from './views'
 
-// Raise this to hide the count until there are enough views for it to mean something.
+// Raise this to hide the count until there are enough views for it to mean something. A view is someone who watched for ten seconds.
 const MIN_VIEWS_SHOWN = 1
 
 export default function ViewCount(): JSX.Element | null {

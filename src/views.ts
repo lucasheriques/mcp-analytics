@@ -23,47 +23,58 @@ function mayCount(): boolean {
 }
 
 // A browser counts once per kind every 24 hours. The time of the last count stays in this browser's localStorage, so the Worker
-// needs no IP address or ID to tell repeat visitors apart. Clearing storage resets it, which is fine for a rough count.
-const countedThisSession = new Set<Kind>()
-function dueForCount(kind: Kind): boolean {
-    if (countedThisSession.has(kind)) return false
-    countedThisSession.add(kind)
+// needs no IP address or ID to tell repeat visitors apart. It is written only after the Worker confirms the count, so a request
+// that was blocked or refused is tried again on the next visit. Clearing storage resets it, which is fine for a rough count.
+const attemptedThisSession = new Set<Kind>()
+const storageKey = (kind: Kind): string => `mcp-analytics-counted-${kind}`
+
+function countedRecently(kind: Kind): boolean {
     try {
-        const key = `mcp-analytics-counted-${kind}`
-        const last = Number(localStorage.getItem(key))
-        if (last && Date.now() - last < COUNT_AGAIN_AFTER_MS) return false
-        localStorage.setItem(key, String(Date.now()))
+        const last = Number(localStorage.getItem(storageKey(kind)))
+        return last > 0 && Date.now() - last < COUNT_AGAIN_AFTER_MS
     } catch {
-        // storage is blocked, so this page load counts once and nothing remembers it
+        return false
     }
-    return true
 }
 
-function send(kind: Kind): void {
-    if (!mayCount() || !dueForCount(kind)) return
+function remember(kind: Kind): void {
+    try {
+        localStorage.setItem(storageKey(kind), String(Date.now()))
+    } catch {
+        // storage is blocked; the count stands, and nothing remembers it
+    }
+}
+
+async function send(kind: Kind): Promise<void> {
+    if (!mayCount() || attemptedThisSession.has(kind) || countedRecently(kind)) return
+    attemptedThisSession.add(kind)
     const host = embedded() ? hostnameOf(document.referrer) : ''
-    // A text body keeps this a simple cross-origin request, so the browser sends no preflight.
-    void fetch(ENDPOINT, {
-        method: 'POST',
-        mode: 'no-cors',
-        keepalive: true,
-        body: JSON.stringify({ kind, host }),
-    }).catch(() => undefined)
+    try {
+        // A text body keeps this a simple cross-origin request, so the browser sends no preflight.
+        const response = await fetch(ENDPOINT, {
+            method: 'POST',
+            keepalive: true,
+            body: JSON.stringify({ kind, host }),
+        })
+        if (response.ok) remember(kind)
+    } catch {
+        // blocked or offline; the next visit tries again
+    }
 }
 
 // One count when the page or embed loads.
-export const recordView = (): void => send(embedded() ? 'embed' : 'page')
+export const recordView = (): void => void send(embedded() ? 'embed' : 'page')
 
 // One count after ten seconds of actual playback.
-export const recordWatched = (): void => send('watched')
+export const recordWatched = (): void => void send('watched')
 
-// The total views across pages and embeds, or null when the Worker cannot be reached (for example from localhost).
+// How many people have watched (ten seconds of playback), or null when the Worker cannot be reached (for example from localhost).
 export async function fetchViewCount(): Promise<number | null> {
     try {
         const response = await fetch(`${WORKER}/count`)
         if (!response.ok) return null
-        const { views } = (await response.json()) as { views?: unknown }
-        return typeof views === 'number' ? views : null
+        const { watched } = (await response.json()) as { watched?: unknown }
+        return typeof watched === 'number' ? watched : null
     } catch {
         return null
     }

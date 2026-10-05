@@ -25,29 +25,33 @@ export default {
     },
 }
 
+// The status goes back with CORS headers, so the page can tell a counted view from a refused one and only remember the former.
+const reply = (status: number): Response =>
+    new Response(null, { status, headers: { 'access-control-allow-origin': SITE_ORIGIN, vary: 'Origin' } })
+
 async function recordView(request: Request, env: Env): Promise<Response> {
     if (request.headers.get('origin') !== SITE_ORIGIN) return new Response(null, { status: 403 })
 
     // The IP is only the rate-limit key. Cloudflare counts it for a minute and the Worker never stores it.
     const { success } = await env.VIEW_LIMITER.limit({ key: request.headers.get('cf-connecting-ip') ?? 'unknown' })
-    if (!success) return new Response(null, { status: 429 })
+    if (!success) return reply(429)
 
     let body: { kind?: unknown; host?: unknown } | null
     try {
         body = JSON.parse(await request.text())
     } catch {
-        return new Response(null, { status: 400 })
+        return reply(400)
     }
-    if (typeof body !== 'object' || body === null) return new Response(null, { status: 400 })
+    if (typeof body !== 'object' || body === null) return reply(400)
     const { kind, host } = body
-    if (kind !== 'page' && kind !== 'embed' && kind !== 'watched') return new Response(null, { status: 400 })
+    if (kind !== 'page' && kind !== 'embed' && kind !== 'watched') return reply(400)
     const embeddedIn = kind !== 'page' && typeof host === 'string' && HOSTNAME.test(host) ? host : ''
 
     const day = new Date().toISOString().slice(0, 10)
     const today = await env.DB.prepare('SELECT COALESCE(SUM(count), 0) AS views FROM views WHERE day = ?1')
         .bind(day)
         .first<{ views: number }>()
-    if ((today?.views ?? 0) >= DAILY_CAP) return new Response(null, { status: 429 })
+    if ((today?.views ?? 0) >= DAILY_CAP) return reply(429)
 
     await env.DB.prepare(
         `INSERT INTO views (day, kind, host, count) VALUES (?1, ?2, ?3, 1)
@@ -55,7 +59,7 @@ async function recordView(request: Request, env: Env): Promise<Response> {
     )
         .bind(day, kind, embeddedIn)
         .run()
-    return new Response(null, { status: 204 })
+    return reply(204)
 }
 
 // The total is cached, so repeated reads cost the database one query every few minutes.
