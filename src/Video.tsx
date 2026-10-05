@@ -8,11 +8,14 @@ import PlayOverlay from './PlayOverlay'
 import { CHAPTERS, INITIAL_STATE, Player, SPEEDS, chapterAt, formatTime } from './player'
 import type { PlayerState, Speed } from './player'
 import { loadSaved, resumeFrame, save } from './storage'
+import { useDelayedFlag } from './useDelayedFlag'
 import { FPS, FRAMES } from './timeline'
 import { recordWatched } from './views'
 
 const SEEK_SECONDS = 5
 const WATCHED_AFTER_SECONDS = 10
+const LOADING_DELAY_MS = 400
+const LOADING_MIN_VISIBLE_MS = 700
 const VOLUME_STEP = 0.1
 
 const iconButton =
@@ -66,6 +69,8 @@ export default function Video({ initialFrame = 0, fill = false }: VideoProps): J
     }, [])
 
     const chapterIndex = CHAPTERS.indexOf(chapterAt(frame))
+    // A load that finishes quickly shows no indicator, so pressing Play never flashes one.
+    const showLoading = useDelayedFlag(status === 'loading', LOADING_DELAY_MS, LOADING_MIN_VISIBLE_MS)
 
     // Counts a watch after ten seconds of actual playback, however many pauses and seeks it takes.
     // The resume note is only for the first stretch after coming back, so it goes as soon as playback starts.
@@ -185,11 +190,10 @@ export default function Video({ initialFrame = 0, fill = false }: VideoProps): J
                             void player.current?.play()
                         }}
                     />
-                ) : status === 'loading' ? (
-                    <LoadingScreen progress={loadProgress} />
                 ) : (
-                    status !== 'playing' && <PlayOverlay />
+                    status === 'paused' && <PlayOverlay />
                 )}
+                {showLoading && <LoadingScreen progress={loadProgress} />}
             </div>
             <div className="flex flex-col gap-2 p-2">
                 <div>

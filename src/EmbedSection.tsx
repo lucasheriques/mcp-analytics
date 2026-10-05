@@ -13,7 +13,7 @@ export default function EmbedSection(): JSX.Element {
 
     return (
         <section id="embed" aria-labelledby="embed-heading" className="flex items-center gap-4">
-            <div className="flex min-w-0 flex-1 flex-col gap-2">
+            <div className="flex min-w-0 flex-1 flex-col gap-3">
                 <h2 id="embed-heading" className="text-lg font-bold">
                     Embed it or download it
                 </h2>

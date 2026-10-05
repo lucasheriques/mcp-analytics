@@ -1,4 +1,5 @@
-import React, { useEffect, useRef } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
+import { REPO_URL } from './links'
 import { currentTheme } from './theme'
 
 const GISCUS = {
@@ -23,6 +24,7 @@ const themeUrl = (): string => `${THEME_BASE}giscus-${currentTheme()}.css`
 // Comments live in this repo's GitHub Discussions through giscus. Readers sign in with GitHub to comment.
 export default function Comments(): JSX.Element {
     const container = useRef<HTMLDivElement>(null)
+    const [failed, setFailed] = useState(false)
 
     useEffect(() => {
         const script = document.createElement('script')
@@ -31,6 +33,8 @@ export default function Comments(): JSX.Element {
         script.crossOrigin = 'anonymous'
         for (const [name, value] of Object.entries(GISCUS)) script.setAttribute(name, value)
         script.setAttribute('data-theme', themeUrl())
+        // An ad blocker, a privacy extension, or no connection stops giscus loading, and a blank box would look broken.
+        script.onerror = () => setFailed(true)
         container.current?.append(script)
 
         // giscus reads its theme once, so after a switch the new one is sent to its iframe.
@@ -51,7 +55,7 @@ export default function Comments(): JSX.Element {
     }, [])
 
     return (
-        <section aria-labelledby="comments-heading" className="flex flex-col gap-2">
+        <section aria-labelledby="comments-heading" className="flex flex-col gap-3">
             <h2 id="comments-heading" className="text-lg font-bold">
                 Comments
             </h2>
@@ -59,10 +63,23 @@ export default function Comments(): JSX.Element {
                 the sections below it down when it loads. */}
             <div ref={container} className="relative min-h-[372px] [&_.giscus]:relative">
                 <div
-                    aria-hidden="true"
-                    className="absolute inset-0 flex items-center justify-center rounded-lg border border-line bg-subtle text-sm text-muted-fg"
+                    className="absolute inset-0 flex items-center justify-center rounded-lg border border-line bg-subtle p-4 text-center text-sm text-muted-fg"
+                    aria-hidden={!failed}
                 >
-                    Loading comments…
+                    {failed && (
+                        <p>
+                            Comments could not load.{' '}
+                            <a
+                                href={`${REPO_URL}/discussions`}
+                                target="_blank"
+                                rel="noopener"
+                                className="underline hover:text-fg"
+                            >
+                                Join the discussion on GitHub
+                            </a>
+                            .
+                        </p>
+                    )}
                 </div>
             </div>
         </section>

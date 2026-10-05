@@ -6,7 +6,7 @@ import { SETUP_COMMAND } from './links'
 export default function InstallSection(): JSX.Element {
     return (
         <section aria-labelledby="install-heading" className="flex items-center gap-4">
-            <div className="flex min-w-0 flex-1 flex-col gap-2">
+            <div className="flex min-w-0 flex-1 flex-col gap-3">
                 <h2 id="install-heading" className="text-lg font-bold">
                     Add it to your MCP server
                 </h2>
