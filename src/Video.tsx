@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react'
 import ChapterCard from './ChapterCard'
 import EndCard from './EndCard'
+import LoadingScreen from './LoadingScreen'
 import { renderFrame } from './engine'
 import { IconFullscreen, IconPause, IconPlay, IconVolume, IconVolumeMuted } from './icons'
 import PlayOverlay from './PlayOverlay'
@@ -33,7 +34,7 @@ export default function Video({ initialFrame = 0, fill = false }: VideoProps): J
     const [fullscreen, setFullscreen] = useState(false)
     const [resumedFrom, setResumedFrom] = useState<number | null>(null)
     const [hover, setHover] = useState<{ frame: number; left: number } | null>(null)
-    const { frame, status, speed, muted, volume } = state
+    const { frame, status, speed, muted, volume, loadProgress } = state
 
     useEffect(() => {
         if (!canvas.current) return
@@ -184,6 +185,8 @@ export default function Video({ initialFrame = 0, fill = false }: VideoProps): J
                             void player.current?.play()
                         }}
                     />
+                ) : status === 'loading' ? (
+                    <LoadingScreen progress={loadProgress} />
                 ) : (
                     status !== 'playing' && <PlayOverlay />
                 )}
@@ -235,8 +238,12 @@ export default function Video({ initialFrame = 0, fill = false }: VideoProps): J
                         onClick={() => player.current?.toggle()}
                         className="flex h-9 items-center gap-1.5 rounded bg-brand px-3 text-sm font-semibold text-on-brand hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fg"
                     >
-                        {status === 'playing' ? <IconPause className="size-4" /> : <IconPlay className="size-4" />}
-                        {status === 'playing' ? 'Pause' : status === 'loading' ? 'Loading…' : 'Play'}
+                        {status === 'playing' || status === 'loading' ? (
+                            <IconPause className="size-4" />
+                        ) : (
+                            <IconPlay className="size-4" />
+                        )}
+                        {status === 'playing' || status === 'loading' ? 'Pause' : 'Play'}
                     </button>
                     <span className="text-sm tabular-nums text-muted-fg">
                         {formatTime(frame)} / {formatTime(FRAMES)}

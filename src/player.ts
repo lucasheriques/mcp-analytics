@@ -1,5 +1,5 @@
 import { renderFrame } from './engine'
-import { fetchBytes, musicUrl, prefetchMusic, sfxFiles, sfxUrl } from './audioAssets'
+import { MOODS_IN_ORDER, fetchBytes, musicUrl, prefetchMusic, sfxFiles, sfxUrl } from './audioAssets'
 import { FPS, FRAMES, MUSIC_CHOICE, MUSIC_VOLUME, SCENES, SFX, SFX_MASTER, SFX_VOLUME, musicAt } from './timeline'
 
 const SFX_WAIT_MS = 3000 // Play starts after this long even if some sound effects are still downloading
@@ -22,6 +22,8 @@ export interface PlayerState {
     speed: Speed
     muted: boolean
     volume: number
+    // How much of the sound has arrived, from 0 to 1. It only matters while status is 'loading'.
+    loadProgress: number
 }
 
 export const INITIAL_STATE: PlayerState = {
@@ -30,6 +32,7 @@ export const INITIAL_STATE: PlayerState = {
     speed: 1,
     muted: false,
     volume: 1,
+    loadProgress: 0,
 }
 
 interface Cue {
@@ -109,7 +112,7 @@ export class Player {
         const { status } = this.state
         if (status === 'playing' || status === 'loading') return
         if (this.state.frame >= FRAMES - 1) this.show(0)
-        this.set({ status: 'loading' })
+        this.set({ status: 'loading', loadProgress: 0 })
         let audio: AudioGraph
         try {
             audio = await this.load()
@@ -251,15 +254,28 @@ export class Player {
             const audio: AudioGraph = { ctx, sfxBus, musicBus, sfx: new Map() }
             this.applyGains(audio)
             // Each file loads on its own, so one that fails or arrives late costs only that sound. Play waits a few seconds at most.
+            const files = sfxFiles()
+            // The sound effects plus the track that plays first. Each one, loaded or failed, moves the progress bar.
+            const total = files.length + 1
+            let settled = 0
+            const settle = (): void => {
+                settled += 1
+                if (!this.destroyed) this.set({ loadProgress: settled / total })
+            }
             const loadFile = async (file: string): Promise<void> => {
                 try {
                     const data = await fetchBytes(sfxUrl(file))
                     audio.sfx.set(file, await ctx.decodeAudioData(data.slice(0)))
                 } catch (error) {
                     console.warn('missing sfx', file, error)
+                } finally {
+                    settle()
                 }
             }
-            const all = Promise.all(sfxFiles().map(loadFile))
+            void fetchBytes(musicUrl(MOODS_IN_ORDER[0]))
+                .catch(() => undefined)
+                .finally(settle)
+            const all = Promise.all(files.map(loadFile))
             await Promise.race([all, new Promise((resolve) => setTimeout(resolve, SFX_WAIT_MS))])
             void all.then(prefetchMusic)
             this.audio = audio
