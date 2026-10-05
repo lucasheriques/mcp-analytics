@@ -26,7 +26,7 @@ const ChapterCard = React.memo(function ChapterCard({ chapter, active, progress,
                 active ? 'border-brand' : 'border-line hover:border-hover'
             }`}
         >
-            <span className="relative block">
+            <span className="relative hidden @md:block">
                 <canvas
                     ref={thumbnail}
                     width={320}
@@ -37,12 +37,15 @@ const ChapterCard = React.memo(function ChapterCard({ chapter, active, progress,
                     {formatTime(chapter.start)}
                 </span>
             </span>
-            <span className="px-2 py-1">
-                <span className="block text-xs uppercase tracking-wide text-muted-fg">
-                    {chapter.label}
-                    {progress === 100 && ' ★'}
+            <span className="flex items-baseline justify-between gap-2 px-2 py-1 @md:block">
+                <span className="block min-w-0">
+                    <span className="block text-xs uppercase tracking-wide text-muted-fg">
+                        {chapter.label}
+                        {progress === 100 && ' ★'}
+                    </span>
+                    <span className="block text-sm font-semibold leading-tight">{chapter.name}</span>
                 </span>
-                <span className="block text-sm font-semibold leading-tight">{chapter.name}</span>
+                <span className="text-xs tabular-nums text-muted-fg @md:hidden">{formatTime(chapter.start)}</span>
             </span>
             <span className="mt-auto block h-1 bg-line">
                 <span className="block h-full bg-brand" style={{ width: `${progress}%` }} />

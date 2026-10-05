@@ -67,6 +67,11 @@ export default function Video({ initialFrame = 0, fill = false }: VideoProps): J
     const chapterIndex = CHAPTERS.indexOf(chapterAt(frame))
 
     // Counts a watch after ten seconds of actual playback, however many pauses and seeks it takes.
+    // The resume note is only for the first stretch after coming back, so it goes as soon as playback starts.
+    useEffect(() => {
+        if (status === 'playing') setResumedFrom(null)
+    }, [status])
+
     const secondsPlayed = useRef(0)
     useEffect(() => {
         if (status !== 'playing') return
@@ -143,6 +148,8 @@ export default function Video({ initialFrame = 0, fill = false }: VideoProps): J
             else if (e.code === 'KeyF') toggleFullscreen()
             else if (e.code === 'KeyM') p.setMuted(!p.state.muted)
             else if (e.code === 'Comma' || e.code === 'Period') p.step(e.code === 'Period' ? 1 : -1)
+            else if (/^(Digit|Numpad)\d$/.test(e.code))
+                p.seek(Math.round((Number(e.code.slice(-1)) / 10) * (FRAMES - 1)))
             else return
             e.preventDefault()
         }

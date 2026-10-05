@@ -56,12 +56,6 @@ export default function App(): JSX.Element {
                         <IconGitHub className="size-4" />
                         GitHub
                     </ExternalLink>
-                    <a
-                        href="#embed"
-                        className="rounded border border-line px-3 py-1.5 text-sm font-semibold hover:border-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand"
-                    >
-                        Embed
-                    </a>
                     <ExternalLink
                         href={POSTHOG_MCP_ANALYTICS}
                         className="rounded bg-brand px-3 py-1.5 text-sm font-semibold text-on-brand hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fg"
@@ -71,12 +65,12 @@ export default function App(): JSX.Element {
                 </div>
             </header>
             <Video initialFrame={initialFrame()} />
-            <EmbedSection />
             <Comments />
+            <EmbedSection />
             <footer className="flex flex-col gap-1 border-t border-line pt-4 text-sm text-muted-fg">
-                <p>
-                    Every frame is drawn live in your browser from code, so there is no video file. Press Space to play,
-                    F for fullscreen, M to mute, left and right to skip, and up and down for volume.
+                <p className="hidden sm:block">
+                    Keyboard: Space plays, F goes fullscreen, M mutes, left and right skip, up and down change the
+                    volume, and 1 to 9 jump to 10% to 90%.
                 </p>
                 <p>
                     Curious about the product? Read about{' '}

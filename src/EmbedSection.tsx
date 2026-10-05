@@ -5,13 +5,31 @@ const snippet = (): string => {
     return `<iframe src="${src}" title="MCP analytics: an 8-bit tale" width="960" height="540" style="border:0;width:100%;aspect-ratio:16/9" allow="fullscreen" allowfullscreen loading="lazy"></iframe>`
 }
 
+// The clipboard API needs a secure page, focus, and permission, and some browsers and iframes refuse it, so fall back to the
+// older copy command through a hidden textarea.
+async function copyText(text: string): Promise<boolean> {
+    try {
+        await navigator.clipboard.writeText(text)
+        return true
+    } catch {
+        const field = Object.assign(document.createElement('textarea'), { value: text })
+        field.style.position = 'fixed'
+        field.style.opacity = '0'
+        document.body.append(field)
+        field.select()
+        const copied = document.execCommand('copy')
+        field.remove()
+        return copied
+    }
+}
+
 export default function EmbedSection(): JSX.Element {
-    const [copied, setCopied] = useState(false)
+    const [copied, setCopied] = useState<boolean | null>(null)
     const code = snippet()
 
     useEffect(() => {
-        if (!copied) return
-        const timer = setTimeout(() => setCopied(false), 2000)
+        if (copied === null) return
+        const timer = setTimeout(() => setCopied(null), 2000)
         return () => clearTimeout(timer)
     }, [copied])
 
@@ -31,10 +49,10 @@ export default function EmbedSection(): JSX.Element {
             <div className="flex flex-wrap items-center gap-2">
                 <button
                     type="button"
-                    onClick={() => void navigator.clipboard.writeText(code).then(() => setCopied(true))}
+                    onClick={() => void copyText(code).then(setCopied)}
                     className="rounded bg-brand px-3 py-1.5 text-sm font-semibold text-on-brand hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fg"
                 >
-                    {copied ? 'Copied' : 'Copy embed code'}
+                    {copied === null ? 'Copy embed code' : copied ? 'Copied' : 'Press Ctrl+C to copy'}
                 </button>
                 <a
                     href={`${import.meta.env.BASE_URL}embed-example.html`}
