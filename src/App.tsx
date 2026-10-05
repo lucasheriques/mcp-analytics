@@ -83,7 +83,7 @@ export default function App(): JSX.Element {
                     <EmbedButton />
                     <ExternalLink
                         href={POSTHOG_MCP_ANALYTICS}
-                        className="rounded bg-brand px-3 py-1.5 text-sm font-semibold text-white hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fg"
+                        className="rounded bg-brand px-3 py-1.5 text-sm font-semibold text-on-brand hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fg"
                     >
                         PostHog MCP analytics
                     </ExternalLink>

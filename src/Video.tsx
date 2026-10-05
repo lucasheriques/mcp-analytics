@@ -213,7 +213,7 @@ export default function Video({ initialFrame = 0, fill = false }: VideoProps): J
                     <button
                         type="button"
                         onClick={() => player.current?.toggle()}
-                        className="flex h-9 items-center gap-1.5 rounded bg-brand px-3 text-sm font-semibold text-white hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fg"
+                        className="flex h-9 items-center gap-1.5 rounded bg-brand px-3 text-sm font-semibold text-on-brand hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fg"
                     >
                         {status === 'playing' ? <IconPause className="size-4" /> : <IconPlay className="size-4" />}
                         {status === 'playing' ? 'Pause' : status === 'loading' ? 'Loading…' : 'Play'}

@@ -7,6 +7,7 @@
     --line: #bfc1b7;
     --hover: #7d8075;
     --brand: #f54e00;
+    --on-brand: #151515;
 }
 
 :root[data-theme='dark'] {
@@ -16,6 +17,7 @@
     --line: #3c3d38;
     --hover: #6f716a;
     --brand: #f54e00;
+    --on-brand: #151515;
 }
 
 @theme inline {
@@ -25,6 +27,7 @@
     --color-line: var(--line);
     --color-hover: var(--hover);
     --color-brand: var(--brand);
+    --color-on-brand: var(--on-brand);
 }
 
 html,
@@ -37,5 +40,11 @@ body {
     margin: 0;
     background: var(--surface);
     color: var(--fg);
-    font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    font-family:
+        ui-sans-serif,
+        system-ui,
+        -apple-system,
+        'Segoe UI',
+        Roboto,
+        sans-serif;
 }
