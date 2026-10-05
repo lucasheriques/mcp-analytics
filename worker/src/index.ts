@@ -6,6 +6,8 @@ interface Env {
 const SITE_ORIGIN = 'https://lucasheriques.github.io'
 const HOSTNAME = /^[a-z0-9.-]{1,100}$/
 const COUNT_CACHE_SECONDS = 300
+// Raise this after clearing the table so no data center keeps serving the old total.
+const CACHE_VERSION = 2
 // A hard ceiling on counted views per day. It bounds how far anyone can inflate the numbers or spend the free database quota.
 const DAILY_CAP = 5000
 
@@ -57,7 +59,7 @@ async function recordView(request: Request, env: Env): Promise<Response> {
 
 // The total is cached, so repeated reads cost the database one query every few minutes.
 async function totalViews(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
-    const cacheKey = new Request(new URL('/count', request.url).toString())
+    const cacheKey = new Request(new URL(`/count?v=${CACHE_VERSION}`, request.url).toString())
     const cached = await edgeCache().match(cacheKey)
     if (cached) return cached
 
