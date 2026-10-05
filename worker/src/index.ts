@@ -6,6 +6,8 @@ interface Env {
 const SITE_ORIGIN = 'https://lucasheriques.github.io'
 const HOSTNAME = /^[a-z0-9.-]{1,100}$/
 const COUNT_CACHE_SECONDS = 60
+// A count is a few dozen bytes, so anything larger is refused without being read in full.
+const MAX_BODY_BYTES = 1024
 // Raise this after clearing the table so no data center keeps serving the old total.
 const CACHE_VERSION = 4
 // A hard ceiling on counted events per day (page, embed, and watched together), about half of Cloudflare's free-plan limit of 100,000
@@ -25,6 +27,26 @@ export default {
     },
 }
 
+// Reads the body only as far as the limit, so a huge or endless upload costs nothing. Returns null when it is too big.
+async function readSmallBody(request: Request): Promise<string | null> {
+    if (Number(request.headers.get('content-length') ?? 0) > MAX_BODY_BYTES) return null
+    const reader = request.body?.getReader()
+    if (!reader) return ''
+    const decoder = new TextDecoder()
+    let text = ''
+    let size = 0
+    for (;;) {
+        const { done, value } = await reader.read()
+        if (done) return text + decoder.decode()
+        size += value.byteLength
+        if (size > MAX_BODY_BYTES) {
+            await reader.cancel()
+            return null
+        }
+        text += decoder.decode(value, { stream: true })
+    }
+}
+
 // The status goes back with CORS headers, so the page can tell a counted view from a refused one and only remember the former.
 const reply = (status: number): Response =>
     new Response(null, { status, headers: { 'access-control-allow-origin': SITE_ORIGIN, vary: 'Origin' } })
@@ -36,9 +58,11 @@ async function recordView(request: Request, env: Env): Promise<Response> {
     const { success } = await env.VIEW_LIMITER.limit({ key: request.headers.get('cf-connecting-ip') ?? 'unknown' })
     if (!success) return reply(429)
 
+    const text = await readSmallBody(request)
+    if (text === null) return reply(413)
     let body: { kind?: unknown; host?: unknown } | null
     try {
-        body = JSON.parse(await request.text())
+        body = JSON.parse(text)
     } catch {
         return reply(400)
     }
