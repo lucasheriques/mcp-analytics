@@ -1,7 +1,8 @@
 import { renderFrame } from './engine'
+import { fetchBytes, musicUrl, prefetchMusic, sfxFiles, sfxUrl } from './audioAssets'
 import { FPS, FRAMES, MUSIC_CHOICE, MUSIC_VOLUME, SCENES, SFX, SFX_MASTER, SFX_VOLUME, musicAt } from './timeline'
 
-const ASSETS = import.meta.env.BASE_URL.replace(/\/$/, '')
+const SFX_WAIT_MS = 3000 // Play starts after this long even if some sound effects are still downloading
 const LEVEL_NAMES = [
     '2020 software',
     'Agents arrive',
@@ -249,23 +250,18 @@ export class Player {
             musicBus.connect(ctx.destination)
             const audio: AudioGraph = { ctx, sfxBus, musicBus, sfx: new Map() }
             this.applyGains(audio)
-            const files = [...new Set((SFX as Cue[]).map((c) => c.file))]
-            // Looping beds stay WAV: AAC adds silent padding that would show up as a gap on every repeat.
-            const looped = new Set((SFX as Cue[]).filter((c) => c.until).map((c) => c.file))
-            const assetFor = (f: string): string => (looped.has(f) ? f : f.replace(/\.wav$/, '.m4a'))
-            try {
-                await Promise.all(
-                    files.map(async (f) => {
-                        const res = await fetch(`${ASSETS}/sfx/${assetFor(f)}`)
-                        if (!res.ok) return console.warn('missing sfx', f)
-                        audio.sfx.set(f, await ctx.decodeAudioData(await res.arrayBuffer()))
-                    })
-                )
-            } catch (error) {
-                this.loading = null
-                void ctx.close()
-                throw error
+            // Each file loads on its own, so one that fails or arrives late costs only that sound. Play waits a few seconds at most.
+            const loadFile = async (file: string): Promise<void> => {
+                try {
+                    const data = await fetchBytes(sfxUrl(file))
+                    audio.sfx.set(file, await ctx.decodeAudioData(data.slice(0)))
+                } catch (error) {
+                    console.warn('missing sfx', file, error)
+                }
             }
+            const all = Promise.all(sfxFiles().map(loadFile))
+            await Promise.race([all, new Promise((resolve) => setTimeout(resolve, SFX_WAIT_MS))])
+            void all.then(prefetchMusic)
             this.audio = audio
             this.applyGains(audio)
             return audio
@@ -303,12 +299,8 @@ export class Player {
 
     private musicBuffer({ ctx }: AudioGraph, url: string): Promise<AudioBuffer> {
         if (!this.musicBuffers.has(url)) {
-            const buffer = fetch(url)
-                .then((r) => {
-                    if (!r.ok) throw new Error(`${r.status} for ${url}`)
-                    return r.arrayBuffer()
-                })
-                .then((b) => ctx.decodeAudioData(b))
+            const buffer = fetchBytes(url)
+                .then((data) => ctx.decodeAudioData(data.slice(0)))
                 .catch((error) => {
                     this.musicBuffers.delete(url)
                     throw error
@@ -335,7 +327,7 @@ export class Player {
         this.stopMusic()
         if (!seg) return
         const gen = ++this.musicGen
-        const buf = await this.musicBuffer(audio, `${ASSETS}/music/${MUSIC_CHOICE[seg.mood]}`).catch((error) =>
+        const buf = await this.musicBuffer(audio, musicUrl(seg.mood)).catch((error) =>
             console.warn('Could not load the music', error)
         )
         if (!buf || gen !== this.musicGen || this.state.status !== 'playing') return
