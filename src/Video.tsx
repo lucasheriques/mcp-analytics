@@ -35,7 +35,7 @@ export default function Video({ initialFrame = 0, fill = false }: VideoProps): J
 
     useEffect(() => {
         if (!canvas.current) return
-        const saved = loadSaved()
+        const { frame: savedFrame, ...settings } = loadSaved()
         let restored = false
         let lastSaved = ''
         // Saves once per second of video, and whenever a setting changes. Nothing is saved until the restore below has run.
@@ -52,10 +52,10 @@ export default function Video({ initialFrame = 0, fill = false }: VideoProps): J
                 setState(next)
                 persist(next)
             },
-            saved
+            settings
         )
         player.current = p
-        const start = initialFrame || resumeFrame(saved.frame)
+        const start = initialFrame || resumeFrame(savedFrame)
         if (start) p.seek(start)
         if (!initialFrame && start) setResumedFrom(start)
         restored = true

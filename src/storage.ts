@@ -20,14 +20,15 @@ const number = (value: unknown): number | undefined =>
 export function loadSaved(): Partial<Saved> {
     try {
         const raw = JSON.parse(localStorage.getItem(KEY) ?? '{}') as Record<string, unknown>
+        const saved: Partial<Saved> = {}
+        const frame = number(raw.frame)
         const volume = number(raw.volume)
         const speed = SPEEDS.find((s) => s === raw.speed)
-        return {
-            frame: number(raw.frame),
-            volume: volume === undefined ? undefined : Math.max(0, Math.min(1, volume)),
-            muted: typeof raw.muted === 'boolean' ? raw.muted : undefined,
-            speed,
-        }
+        if (frame !== undefined) saved.frame = frame
+        if (volume !== undefined) saved.volume = Math.max(0, Math.min(1, volume))
+        if (typeof raw.muted === 'boolean') saved.muted = raw.muted
+        if (speed !== undefined) saved.speed = speed
+        return saved
     } catch {
         return {}
     }
