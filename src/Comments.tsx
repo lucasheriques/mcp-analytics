@@ -25,7 +25,6 @@ const themeUrl = (): string => `${THEME_BASE}giscus-${currentTheme()}.css`
 export default function Comments(): JSX.Element {
     const container = useRef<HTMLDivElement>(null)
     const [failed, setFailed] = useState(false)
-    const [ready, setReady] = useState(false)
 
     useEffect(() => {
         const script = document.createElement('script')
@@ -34,7 +33,7 @@ export default function Comments(): JSX.Element {
         script.crossOrigin = 'anonymous'
         for (const [name, value] of Object.entries(GISCUS)) script.setAttribute(name, value)
         script.setAttribute('data-theme', themeUrl())
-        // An ad blocker, a privacy extension, or no connection stops giscus loading, and a blank box would look broken.
+        // An ad blocker, a privacy extension, or no connection stops giscus loading, and an empty space would look broken.
         script.onerror = () => setFailed(true)
         container.current?.append(script)
 
@@ -50,13 +49,7 @@ export default function Comments(): JSX.Element {
         })
         observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] })
 
-        // giscus posts a message to size its iframe once it has rendered, which is the moment the placeholder can go.
-        const onMessage = (event: MessageEvent): void => {
-            if (event.origin === 'https://giscus.app' && event.data?.giscus) setReady(true)
-        }
-        window.addEventListener('message', onMessage)
         return () => {
-            window.removeEventListener('message', onMessage)
             observer.disconnect()
             container.current?.querySelectorAll('script, .giscus, iframe').forEach((node) => node.remove())
         }
@@ -68,29 +61,21 @@ export default function Comments(): JSX.Element {
                 Comments
             </h2>
             {/* The empty widget is 372px tall. Reserving that height means it fills a space that already exists instead of pushing
-                the sections below it down when it loads. The placeholder only shows until the widget has rendered, so it never
-                sits behind the widget's transparent parts. */}
-            <div ref={container} className="relative min-h-[372px] [&_.giscus]:relative">
-                {!ready && (
-                    <div
-                        className="absolute inset-0 flex items-center justify-center rounded-lg border border-line bg-subtle p-4 text-center text-sm text-muted-fg"
-                        aria-hidden={!failed}
-                    >
-                        {failed && (
-                            <p>
-                                Comments could not load.{' '}
-                                <a
-                                    href={`${REPO_URL}/discussions`}
-                                    target="_blank"
-                                    rel="noopener"
-                                    className="underline hover:text-fg"
-                                >
-                                    Join the discussion on GitHub
-                                </a>
-                                .
-                            </p>
-                        )}
-                    </div>
+                the sections below it down when it loads. */}
+            <div ref={container} className="min-h-[372px]">
+                {failed && (
+                    <p className="text-sm text-muted-fg">
+                        Comments could not load.{' '}
+                        <a
+                            href={`${REPO_URL}/discussions`}
+                            target="_blank"
+                            rel="noopener"
+                            className="underline hover:text-fg"
+                        >
+                            Join the discussion on GitHub
+                        </a>
+                        .
+                    </p>
                 )}
             </div>
         </section>
