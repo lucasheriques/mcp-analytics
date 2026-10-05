@@ -37,7 +37,8 @@ Keep `allow="fullscreen"`. Without it the fullscreen button does nothing inside 
 The site counts views with a small Cloudflare Worker and a D1 database (`worker/`). There are no cookies, no analytics scripts, and no tracking links.
 
 - **What is stored:** a daily count per kind (`page` or `embed`) and, for an embed, the hostname of the page that holds it. Nothing else. There is no IP address, user agent, or user ID.
-- **When it counts:** once per browser tab session. It does nothing on localhost or when the browser sends Do Not Track or Global Privacy Control.
+- **When it counts:** a `page` or `embed` count when the page loads, and a `watched` count after ten seconds of real playback. Each kind counts at most once every 24 hours per browser, using a timestamp in that browser's localStorage, so the Worker never needs an IP address or ID to spot repeats. It does nothing on localhost or when the browser sends Do Not Track or Global Privacy Control.
+- **Why not dedupe by IP:** shared IPs (offices, VPNs, mobile carriers) would count a whole team as one viewer, and it would mean storing something derived from the IP.
 - **Read the numbers:**
 
 ```bash
@@ -47,7 +48,7 @@ npx wrangler d1 execute mcp-analytics-views --remote --command "SELECT kind, SUM
 ```
 
 - **Set it up again:** `npm install`, `npx wrangler d1 create mcp-analytics-views`, put the new `database_id` in `wrangler.toml`, then `npx wrangler d1 execute mcp-analytics-views --remote --file=schema.sql` and `npx wrangler deploy`. Put the Worker URL in `src/views.ts`.
-- **Public count:** `GET /count` returns the total (`{"views": 1234}`) with CORS for the site only, and the Worker caches it for five minutes. The page shows it from the first view. Raise `MIN_VIEWS_SHOWN` in `src/ViewCount.tsx` to hide it until there are more.
+- **Public count:** `GET /count` returns the totals (`{"views": 1234, "watched": 300}`) with CORS for the site only, and the Worker caches it for five minutes. The page shows it from the first view. Raise `MIN_VIEWS_SHOWN` in `src/ViewCount.tsx` to hide it until there are more.
 - **Abuse limits:** the Worker accepts counts only from `https://lucasheriques.github.io`, applies Cloudflare's per-IP rate limit (30 a minute, which is loose and approximate), and stops counting after 5,000 views a day (`DAILY_CAP`). Anyone can still send fake counts by hand, so the number is a rough count, not proof.
 
 ## Develop

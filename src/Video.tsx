@@ -8,8 +8,10 @@ import { CHAPTERS, INITIAL_STATE, Player, SPEEDS, chapterAt, formatTime } from '
 import type { PlayerState, Speed } from './player'
 import { loadSaved, resumeFrame, save } from './storage'
 import { FPS, FRAMES } from './timeline'
+import { recordWatched } from './views'
 
 const SEEK_SECONDS = 5
+const WATCHED_AFTER_SECONDS = 10
 const VOLUME_STEP = 0.1
 
 const iconButton =
@@ -63,6 +65,17 @@ export default function Video({ initialFrame = 0, fill = false }: VideoProps): J
     }, [])
 
     const chapterIndex = CHAPTERS.indexOf(chapterAt(frame))
+
+    // Counts a watch after ten seconds of actual playback, however many pauses and seeks it takes.
+    const secondsPlayed = useRef(0)
+    useEffect(() => {
+        if (status !== 'playing') return
+        const timer = setInterval(() => {
+            secondsPlayed.current += 1
+            if (secondsPlayed.current === WATCHED_AFTER_SECONDS) recordWatched()
+        }, 1000)
+        return () => clearInterval(timer)
+    }, [status])
 
     useEffect(() => {
         const sync = (): void => setFullscreen(document.fullscreenElement === root.current)

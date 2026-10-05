@@ -12,7 +12,7 @@ const DAILY_CAP = 5000
 // The Workers runtime adds `default`, the cache shared by every request in this data center, to the standard CacheStorage.
 const edgeCache = (): Cache => (caches as CacheStorage & { default: Cache }).default
 
-// Counts one view per day, per kind ("page" or "embed"), and per embedding hostname. It stores no IP address, user agent, or cookie.
+// Counts per day, per kind ("page" or "embed" for a load, "watched" for ten seconds of playback), and per embedding hostname. It stores no IP address, user agent, or cookie.
 export default {
     async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
         const url = new URL(request.url)
@@ -37,8 +37,8 @@ async function recordView(request: Request, env: Env): Promise<Response> {
     }
     if (typeof body !== 'object' || body === null) return new Response(null, { status: 400 })
     const { kind, host } = body
-    if (kind !== 'page' && kind !== 'embed') return new Response(null, { status: 400 })
-    const embeddedIn = kind === 'embed' && typeof host === 'string' && HOSTNAME.test(host) ? host : ''
+    if (kind !== 'page' && kind !== 'embed' && kind !== 'watched') return new Response(null, { status: 400 })
+    const embeddedIn = kind !== 'page' && typeof host === 'string' && HOSTNAME.test(host) ? host : ''
 
     const day = new Date().toISOString().slice(0, 10)
     const today = await env.DB.prepare('SELECT COALESCE(SUM(count), 0) AS views FROM views WHERE day = ?1')
@@ -61,9 +61,13 @@ async function totalViews(request: Request, env: Env, ctx: ExecutionContext): Pr
     const cached = await edgeCache().match(cacheKey)
     if (cached) return cached
 
-    const row = await env.DB.prepare('SELECT COALESCE(SUM(count), 0) AS views FROM views').first<{ views: number }>()
+    const row = await env.DB.prepare(
+        `SELECT COALESCE(SUM(CASE WHEN kind != 'watched' THEN count END), 0) AS views,
+                COALESCE(SUM(CASE WHEN kind = 'watched' THEN count END), 0) AS watched
+         FROM views`
+    ).first<{ views: number; watched: number }>()
     const response = Response.json(
-        { views: row?.views ?? 0 },
+        { views: row?.views ?? 0, watched: row?.watched ?? 0 },
         {
             headers: {
                 'access-control-allow-origin': SITE_ORIGIN,
