@@ -1,19 +1,16 @@
 import React, { useEffect, useRef, useState } from 'react'
-import { capture } from './analytics'
 import ChapterCard from './ChapterCard'
+import EndCard from './EndCard'
 import { renderFrame } from './engine'
 import { IconFullscreen, IconPause, IconPlay, IconVolume, IconVolumeMuted } from './icons'
 import PlayOverlay from './PlayOverlay'
 import { CHAPTERS, INITIAL_STATE, Player, SPEEDS, chapterAt, formatTime } from './player'
 import type { PlayerState, Speed } from './player'
+import { loadSaved, resumeFrame, save } from './storage'
 import { FPS, FRAMES } from './timeline'
 
 const SEEK_SECONDS = 5
-const VIDEO = {
-    video_source: 'canvas',
-    video_id: 'mcp-analytics-8-bit-tale',
-    video_title: 'MCP analytics: an 8-bit tale',
-}
+const VOLUME_STEP = 0.1
 
 const iconButton =
     'flex size-9 items-center justify-center rounded border border-line text-fg hover:border-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand'
@@ -32,37 +29,40 @@ export default function Video({ initialFrame = 0, fill = false }: VideoProps): J
     const clickTimer = useRef<ReturnType<typeof setTimeout>>()
     const [state, setState] = useState<PlayerState>(INITIAL_STATE)
     const [fullscreen, setFullscreen] = useState(false)
+    const [resumedFrom, setResumedFrom] = useState<number | null>(null)
     const [hover, setHover] = useState<{ frame: number; left: number } | null>(null)
-    const { frame, status, speed, muted } = state
+    const { frame, status, speed, muted, volume } = state
 
     useEffect(() => {
         if (!canvas.current) return
-        const p = new Player(canvas.current, setState)
+        const saved = loadSaved()
+        let restored = false
+        let lastSaved = ''
+        // Saves once per second of video, and whenever a setting changes. Nothing is saved until the restore below has run.
+        const persist = ({ frame, status, volume, muted, speed }: PlayerState): void => {
+            if (!restored) return
+            const key = `${Math.floor(frame / FPS)}|${status === 'ended'}|${volume}|${muted}|${speed}`
+            if (key === lastSaved) return
+            lastSaved = key
+            save({ frame: status === 'ended' ? 0 : frame, volume, muted, speed })
+        }
+        const p = new Player(
+            canvas.current,
+            (next) => {
+                setState(next)
+                persist(next)
+            },
+            saved
+        )
         player.current = p
-        if (initialFrame) p.seek(initialFrame)
+        const start = initialFrame || resumeFrame(saved.frame)
+        if (start) p.seek(start)
+        if (!initialFrame && start) setResumedFrom(start)
+        restored = true
         return () => p.destroy()
     }, [])
 
-    const played = useRef(false)
-    const chaptersReached = useRef(new Set<number>())
     const chapterIndex = CHAPTERS.indexOf(chapterAt(frame))
-
-    useEffect(() => {
-        if (status === 'ended') capture('Completed video', VIDEO)
-        if (status !== 'playing' || played.current) return
-        played.current = true
-        capture('Played video', VIDEO)
-    }, [status])
-
-    useEffect(() => {
-        if (status !== 'playing' || chaptersReached.current.has(chapterIndex)) return
-        chaptersReached.current.add(chapterIndex)
-        capture('Video chapter reached', {
-            ...VIDEO,
-            chapter_index: chapterIndex,
-            chapter_name: CHAPTERS[chapterIndex].name,
-        })
-    }, [status, chapterIndex])
 
     useEffect(() => {
         const sync = (): void => setFullscreen(document.fullscreenElement === root.current)
@@ -101,36 +101,47 @@ export default function Video({ initialFrame = 0, fill = false }: VideoProps): J
         })
     }
 
-    // Only for events from inside the player, and not from the speed select, which keeps its own keys.
-    const onKeyDown = (e: React.KeyboardEvent<HTMLDivElement>): void => {
-        const p = player.current
-        const target = e.target as HTMLElement
-        if (
-            !p ||
-            e.defaultPrevented ||
-            e.metaKey ||
-            e.ctrlKey ||
-            e.altKey ||
-            !e.currentTarget.contains(target) ||
-            target.tagName === 'SELECT'
-        )
-            return
-        if (e.code === 'ArrowRight' || e.code === 'ArrowLeft') {
-            p.seek(p.state.frame + (e.code === 'ArrowRight' ? 1 : -1) * SEEK_SECONDS * FPS)
-        } else if (e.code === 'Space' && target.tagName !== 'BUTTON') p.toggle()
-        else if (e.code === 'KeyF') toggleFullscreen()
-        else if (e.code === 'Comma' || e.code === 'Period') p.step(e.code === 'Period' ? 1 : -1)
-        else return
-        e.preventDefault()
-    }
+    // Page-wide, so the shortcuts work without clicking the player first. Text fields and the speed select keep their own keys,
+    // a focused button keeps Space, and a focused slider keeps the arrow keys.
+    useEffect(() => {
+        const onKeyDown = (e: KeyboardEvent): void => {
+            const p = player.current
+            const target = e.target as HTMLElement
+            const onSlider = target instanceof HTMLInputElement && target.type === 'range'
+            if (
+                !p ||
+                e.defaultPrevented ||
+                e.metaKey ||
+                e.ctrlKey ||
+                e.altKey ||
+                target.isContentEditable ||
+                target.tagName === 'TEXTAREA' ||
+                target.tagName === 'SELECT' ||
+                (target instanceof HTMLInputElement && !onSlider)
+            )
+                return
+            const arrow = e.code.startsWith('Arrow')
+            if (arrow && onSlider) return
+            if (e.code === 'ArrowRight' || e.code === 'ArrowLeft') {
+                p.seek(p.state.frame + (e.code === 'ArrowRight' ? 1 : -1) * SEEK_SECONDS * FPS)
+            } else if (e.code === 'ArrowUp' || e.code === 'ArrowDown') {
+                p.setVolume(p.state.volume + (e.code === 'ArrowUp' ? 1 : -1) * VOLUME_STEP)
+            } else if (e.code === 'Space' && target.tagName !== 'BUTTON') p.toggle()
+            else if (e.code === 'KeyF') toggleFullscreen()
+            else if (e.code === 'KeyM') p.setMuted(!p.state.muted)
+            else if (e.code === 'Comma' || e.code === 'Period') p.step(e.code === 'Period' ? 1 : -1)
+            else return
+            e.preventDefault()
+        }
+        window.addEventListener('keydown', onKeyDown)
+        return () => window.removeEventListener('keydown', onKeyDown)
+    }, [])
 
     const filling = fill || fullscreen
 
     return (
         <div
             ref={root}
-            tabIndex={0}
-            onKeyDown={onKeyDown}
             className={`@container flex flex-col rounded border border-line bg-surface text-fg outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand ${
                 filling ? 'h-full' : ''
             }`}
@@ -146,7 +157,16 @@ export default function Video({ initialFrame = 0, fill = false }: VideoProps): J
                     aria-label="MCP analytics: an 8-bit tale, an animated video"
                     className="size-full cursor-pointer object-contain [image-rendering:pixelated]"
                 />
-                {status !== 'playing' && <PlayOverlay />}
+                {status === 'ended' ? (
+                    <EndCard
+                        onReplay={() => {
+                            player.current?.seek(0)
+                            void player.current?.play()
+                        }}
+                    />
+                ) : (
+                    status !== 'playing' && <PlayOverlay />
+                )}
             </div>
             <div className="flex flex-col gap-2 p-2">
                 <div>
@@ -201,6 +221,18 @@ export default function Video({ initialFrame = 0, fill = false }: VideoProps): J
                     <span className="text-sm tabular-nums text-muted-fg">
                         {formatTime(frame)} / {formatTime(FRAMES)}
                     </span>
+                    {resumedFrom !== null && status !== 'playing' && (
+                        <button
+                            type="button"
+                            onClick={() => {
+                                player.current?.seek(0)
+                                setResumedFrom(null)
+                            }}
+                            className="text-sm text-muted-fg underline hover:text-fg"
+                        >
+                            Resumed at {formatTime(resumedFrom)}. Start over
+                        </button>
+                    )}
                     <div className="ml-auto flex items-center gap-1">
                         <select
                             aria-label="Playback speed"
@@ -214,10 +246,21 @@ export default function Video({ initialFrame = 0, fill = false }: VideoProps): J
                                 </option>
                             ))}
                         </select>
+                        <input
+                            type="range"
+                            aria-label="Volume"
+                            title="Volume"
+                            min={0}
+                            max={1}
+                            step={0.05}
+                            value={muted ? 0 : volume}
+                            onChange={(e) => player.current?.setVolume(Number(e.target.value))}
+                            className="hidden h-9 w-20 accent-brand @md:block"
+                        />
                         <button
                             type="button"
                             aria-label={muted ? 'Unmute' : 'Mute'}
-                            title={muted ? 'Unmute' : 'Mute'}
+                            title={muted ? 'Unmute (M)' : 'Mute (M)'}
                             onClick={() => player.current?.setMuted(!muted)}
                             className={iconButton}
                         >

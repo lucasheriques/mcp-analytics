@@ -1,0 +1,8 @@
+name = "mcp-analytics-views"
+main = "src/index.ts"
+compatibility_date = "2025-10-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "mcp-analytics-views"
+database_id = "1820cda2-f0f8-45f0-900b-378d5b7a8c0d"

@@ -20,9 +20,16 @@ export interface PlayerState {
     status: Status
     speed: Speed
     muted: boolean
+    volume: number
 }
 
-export const INITIAL_STATE: PlayerState = { frame: 0, status: 'paused', speed: 1, muted: false }
+export const INITIAL_STATE: PlayerState = {
+    frame: 0,
+    status: 'paused',
+    speed: 1,
+    muted: false,
+    volume: 1,
+}
 
 interface Cue {
     frame: number
@@ -87,7 +94,12 @@ export class Player {
     private raf = 0
     private destroyed = false
 
-    constructor(private canvas: HTMLCanvasElement, private onChange: (state: PlayerState) => void) {
+    constructor(
+        private canvas: HTMLCanvasElement,
+        private onChange: (state: PlayerState) => void,
+        settings: Partial<Pick<PlayerState, 'volume' | 'muted' | 'speed'>> = {}
+    ) {
+        this.state = { ...this.state, ...settings }
         this.show(0)
         document.addEventListener('visibilitychange', this.onVisibilityChange)
     }
@@ -144,6 +156,13 @@ export class Player {
 
     setMuted(muted: boolean): void {
         this.set({ muted })
+        if (this.audio) this.applyGains(this.audio)
+    }
+
+    // Moving the slider off zero unmutes, and moving it to zero mutes, as players usually do.
+    setVolume(volume: number): void {
+        const level = Math.max(0, Math.min(1, volume))
+        this.set({ volume: level, muted: level === 0 })
         if (this.audio) this.applyGains(this.audio)
     }
 
@@ -252,9 +271,10 @@ export class Player {
     }
 
     private applyGains({ sfxBus, musicBus }: AudioGraph): void {
-        const { muted } = this.state
-        sfxBus.gain.value = muted ? 0 : SFX_MASTER * SFX_VOLUME
-        musicBus.gain.value = muted ? 0 : MUSIC_VOLUME
+        const { muted, volume } = this.state
+        const level = muted ? 0 : volume
+        sfxBus.gain.value = SFX_MASTER * SFX_VOLUME * level
+        musicBus.gain.value = MUSIC_VOLUME * level
     }
 
     private fire({ ctx, sfxBus, sfx }: AudioGraph, c: Cue, offsetFrames = 0): void {

@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from 'react'
+import Comments from './Comments'
+import { IconGitHub } from './icons'
+import { POSTHOG_MCP_ANALYTICS, POSTHOG_MCP_ANALYTICS_DOCS, ExternalLink, REPO_URL } from './links'
 import { CHAPTERS } from './player'
 import { FPS, FRAMES } from './timeline'
 import Video from './Video'
 
-const POSTHOG_URL = 'https://posthog.com/mcp-analytics'
 const params = new URLSearchParams(window.location.search)
 const embed = params.get('embed') === '1'
 
@@ -62,26 +64,42 @@ export default function App(): JSX.Element {
                     </p>
                 </div>
                 <div className="flex items-center gap-2">
+                    <ExternalLink
+                        href={REPO_URL}
+                        className="flex items-center gap-1.5 rounded border border-line px-3 py-1.5 text-sm font-semibold hover:border-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand"
+                    >
+                        <IconGitHub className="size-4" />
+                        GitHub
+                    </ExternalLink>
                     <EmbedButton />
-                    <a
-                        href={POSTHOG_URL}
+                    <ExternalLink
+                        href={POSTHOG_MCP_ANALYTICS}
                         className="rounded bg-brand px-3 py-1.5 text-sm font-semibold text-white hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fg"
                     >
                         PostHog MCP analytics
-                    </a>
+                    </ExternalLink>
                 </div>
             </header>
             <Video initialFrame={initialFrame()} />
-            <footer className="text-sm text-muted-fg">
+            <Comments />
+            <footer className="flex flex-col gap-1 border-t border-line pt-4 text-sm text-muted-fg">
                 <p>
                     Every frame is drawn live in your browser from code, so there is no video file. Press Space to play,
-                    F for fullscreen, and the arrow keys to skip.
+                    F for fullscreen, M to mute, left and right to skip, and up and down for volume.
                 </p>
                 <p>
-                    Music from Epidemic Sound. Sound effects from an 8-bit SFX library. Learn more about{' '}
-                    <a href={POSTHOG_URL} className="underline hover:text-fg">
+                    Curious about the product? Read about{' '}
+                    <ExternalLink href={POSTHOG_MCP_ANALYTICS} className="underline hover:text-fg">
                         PostHog MCP analytics
-                    </a>
+                    </ExternalLink>{' '}
+                    or go straight to the{' '}
+                    <ExternalLink href={POSTHOG_MCP_ANALYTICS_DOCS} className="underline hover:text-fg">
+                        docs
+                    </ExternalLink>
+                    . The{' '}
+                    <ExternalLink href={REPO_URL} className="underline hover:text-fg">
+                        source is on GitHub
+                    </ExternalLink>
                     .
                 </p>
             </footer>

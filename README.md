@@ -32,11 +32,22 @@ Keep `allow="fullscreen"`. Without it the fullscreen button does nothing inside 
 | `t=90` | Start at 90 seconds. |
 | `theme=dark` or `theme=light` | Force a theme. The default follows the viewer's system. |
 
-## Events
+## Views
 
-The player captures `Played video`, `Video chapter reached` (with `chapter_index` and `chapter_name`), and `Completed video` into PostHog. Every event carries `embedded` and `embed_referrer`, so embeds are easy to tell apart.
+The site counts views with a small Cloudflare Worker and a D1 database (`worker/`). There are no cookies, no analytics scripts, and no tracking links.
 
-The build sends nothing unless a project key is set. In the repo settings, add the Actions variables `VITE_POSTHOG_KEY` and, for EU or self-hosted projects, `VITE_POSTHOG_HOST`.
+- **What is stored:** a daily count per kind (`page` or `embed`) and, for an embed, the hostname of the page that holds it. Nothing else. There is no IP address, user agent, or user ID.
+- **When it counts:** once per browser tab session. It does nothing on localhost or when the browser sends Do Not Track or Global Privacy Control.
+- **Read the numbers:**
+
+```bash
+cd worker
+npx wrangler d1 execute mcp-analytics-views --remote --command "SELECT day, kind, host, count FROM views ORDER BY day DESC"
+npx wrangler d1 execute mcp-analytics-views --remote --command "SELECT kind, SUM(count) AS views FROM views GROUP BY kind"
+```
+
+- **Set it up again:** `npm install`, `npx wrangler d1 create mcp-analytics-views`, put the new `database_id` in `wrangler.toml`, then `npx wrangler d1 execute mcp-analytics-views --remote --file=schema.sql` and `npx wrangler deploy`. Put the Worker URL in `src/views.ts`.
+- **Limits:** the Worker accepts requests only from `https://lucasheriques.github.io`, but anyone can still send those requests by hand, so treat the numbers as a rough count.
 
 ## Develop
 
@@ -51,6 +62,6 @@ npm run dev
 
 `src/timeline.js` is the script: scenes, chapters, sound cues, and music. `src/engine.js` draws frame `n` onto a 320x180 canvas and scales it up, and the other `.js` files are the scene renderers. `src/player.ts` runs the frame clock and plays the sound through Web Audio. `src/Video.tsx` is the player UI.
 
-## Credits
+## Comments
 
-Music is from Epidemic Sound, and the sound effects are from an 8-bit SFX library. Check the license for both before you reuse them.
+Comments use [giscus](https://giscus.app), which stores them in this repo's GitHub Discussions (category "Announcements"). Readers sign in with GitHub to comment. The giscus GitHub app must be installed on the repo. Embeds do not show comments.
