@@ -15,7 +15,9 @@ export const sfxFiles = (): string[] => [...new Set((SFX as Cue[]).map((c) => c.
 export const sfxUrl = (file: string): string =>
     `${ASSETS}/sfx/${looped.has(file) ? file : file.replace(/\.wav$/, '.m4a')}`
 
-export const musicUrl = (mood: keyof typeof MUSIC_CHOICE): string => `${ASSETS}/music/${MUSIC_CHOICE[mood]}`
+// The tracks are cut to the length that ever plays (each runs from its start to the next level card, never looping) and encoded as AAC.
+export const musicUrl = (mood: keyof typeof MUSIC_CHOICE): string =>
+    `${ASSETS}/music/${MUSIC_CHOICE[mood].replace('.mp3', '.m4a')}`
 
 // The order the moods first play in, so the next track can be fetched before it is needed.
 export const MOODS_IN_ORDER = ['nostalgic', 'curious', 'tense', 'triumphant'] as const
