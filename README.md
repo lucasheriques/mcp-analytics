@@ -23,6 +23,10 @@ Press "Copy embed code" in the "Embed it on your site" section of the page, or p
 
 Keep `allow="fullscreen"`. Without it the fullscreen button does nothing inside the iframe. Sound starts after the viewer's first click, because browsers block autoplay with sound.
 
+## Download
+
+The page has a "Download MP4" button that points at `releases/latest/download/mcp-analytics-an-8-bit-tale.mp4`, so the 36 MB file lives in a GitHub Release and not in the repo. To replace it, publish a new release with a file of the same name.
+
 ## Keyboard shortcuts
 
 They work anywhere on the page, except while typing in a text field, and a focused button keeps Space and a focused slider keeps the arrow keys.
