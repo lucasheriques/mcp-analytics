@@ -231,14 +231,6 @@ function createFeed(root, colorOf, priceOf) {
             renderLog()
             render()
         },
-        // The talk can hold questions back and answer them one at a time.
-        setReveal(count) {
-            rows.forEach((row, i) => {
-                const waiting = i >= count
-                if (!waiting && row.hasAttribute('data-wait')) row.classList.add('enter')
-                row.toggleAttribute('data-wait', waiting)
-            })
-        },
         // Forget what one server's calls have shown so far, so they can be told again one at a time.
         rewind(channel) {
             if (channel === 'instrumented') {

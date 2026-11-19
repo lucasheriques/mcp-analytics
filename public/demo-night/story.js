@@ -89,6 +89,7 @@ const STOPS = [
         kicker: 'Your side · level 1 · no observability',
         notes: {
             lines: [
+                ["DO", "The first press shows the map and an empty log. Explain what is on screen, then press again to play her errand."],
                 ["SAY", "This dashed line is the network. Everything on the other side is her machine, and I never see it."],
                 ["SAY", "All I have is my access log. Every request came back 200."],
                 ["SAY", "She just got told we don't ship to Brazil, and my server answered 200. In MCP, a tool that fails still returns 200."],
@@ -96,6 +97,8 @@ const STOPS = [
             ],
         },
         level: 1,
+        // The first press shows the map. The second plays the errand on it.
+        steps: 2,
         title: 'Every request came back 200. Looks like a good day.',
     },
     {
@@ -103,6 +106,7 @@ const STOPS = [
         kicker: 'Level 2 · traces and logs',
         notes: {
             lines: [
+                ["DO", "Two presses again: the map first, then her errand."],
                 ["SAY", "So I add traces. My server has auth, so I put the user on every span."],
                 ["SAY", "Now I can see checkout failed twice, and I can see it was Priya's token. That's real. I couldn't see that a minute ago."],
                 ["SAY", "But what was she trying to do? Did she end up getting it some other way? Was this one visit or three?"],
@@ -111,6 +115,7 @@ const STOPS = [
             ],
         },
         level: 2,
+        steps: 2,
         title: 'Now you can see checkout failing, and whose token it was. Not what she wanted.',
     },
     {
@@ -132,6 +137,7 @@ const STOPS = [
         kicker: 'Level 3 · MCP Analytics',
         notes: {
             lines: [
+                ["DO", "Two presses again. Let the map colour in, say the first line, then press and stay quiet for a few seconds."],
                 ["SAY", "Same store, same request. Now I get it as one session."],
                 ["SAY", "It was Priya, on Claude Code. She wanted a medium hoodie for her team offsite, shipped to Brazil."],
                 ["SAY", "She didn't get it. There's no order, and 75 dollars are still sitting in her cart."],
@@ -140,6 +146,7 @@ const STOPS = [
             ],
         },
         level: 3,
+        steps: 2,
         title: 'Priya wanted to pay you, and you turned her away.',
     },
     {

@@ -467,7 +467,6 @@
   .board .detail { color: rgba(21, 27, 46, 0.6); font-size: 13px; }
   .board .a:has(.unknown) { grid-template-columns: auto 1fr; align-items: baseline; gap: 8px; }
   .board .known { font-weight: 600; }
-  .board .q[data-wait] { visibility: hidden; }
   /* Level 1 has no traces, so the map shows the server and nothing about its calls. */
   body[data-level="1"] #stage .before { visibility: hidden; }
   body[data-level="1"] .legend li.traced { display: none; }
@@ -673,9 +672,13 @@
   // level recorded of it. That pairing, action by action, is the point of the talk.
   // Settles a telling that was cut short, so what it had not yet shown is still on record.
   let abandon
+  // A level arrives quiet, with its map and an empty log, so there is time to explain what is on
+  // screen. The next press calls this and the errand starts.
+  let begin
   function retell(value) {
     abandon?.()
     clearTimeout(telling)
+    begin = undefined
     cursor = undefined
     const channel = value === 3 ? 'instrumented' : 'raw'
     const events = seen[channel].slice()
@@ -707,6 +710,7 @@
     // Leaving before the story is over, even before its first action, ends it at once: nothing of
     // it stays in the air, and the rest is recorded plainly.
     abandon = () => {
+      begin = undefined
       clearTimeout(telling)
       for (const chip of document.querySelectorAll('.spark')) chip.remove()
       if (inFlight) record(inFlight)
@@ -755,8 +759,12 @@
       )
       if (!walked) telling = setTimeout(next, PACE[value])
     }
-    // The analytics map takes a few seconds to colour in the first time, and journeys wait for it.
-    telling = setTimeout(next, value === 3 ? 4200 : 500)
+    const ready = performance.now()
+    begin = () => {
+      begin = undefined
+      // The analytics map takes a few seconds to colour in the first time, and journeys wait for it.
+      telling = setTimeout(next, Math.max(300, (value === 3 ? 4200 : 0) - (performance.now() - ready)))
+    }
   }
   // Slow enough to read each action as it happens. At level 3 this is the least an action takes: its
   // figure has to walk there, and a long walk takes longer.
@@ -1490,7 +1498,6 @@
     if (!stop.level) abandon?.()
     document.querySelector('.legend').toggleAttribute('data-compact', stop.level > 1)
     paint()
-    feed.setReveal(stop.steps && stop.level ? step + 1 : 4)
     promptsPanel.hidden = true
     promptsToggle.setAttribute('aria-expanded', 'false')
     const wasClient = clientSide
@@ -1509,6 +1516,7 @@
     // A stop only picks which view is showing. Nothing drawn so far is thrown away, and each example
     // plays once, so stepping back and forth through the talk keeps everything. R starts over.
     if (stop.level) setLevel(stop.level, stop !== current)
+    if (stop === current && step > 1) begin?.()
     current = stop
     shownRuns = ''
     showRuns()
@@ -1530,6 +1538,7 @@
   setInterval(() => {
     if (!onMap && !clientSide) return story.setCue('', false)
     if (agentBusy) return story.setCue('Claude is working', true)
+    if (begin && onMap) return story.setCue('→ plays it', false)
     if (cursor) return story.setCue('retelling', true)
     if (example && example.done < example.total) return story.setCue(`example ${example.done}/${example.total}`, true)
     if (scene.busy() || performance.now() - lastCall < 2500) return story.setCue('still moving', true)
