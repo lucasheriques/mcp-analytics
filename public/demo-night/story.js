@@ -255,14 +255,26 @@ const STOPS = [
         notes: {
             lines: [
                 ["SAY", "One more thing before we close, just for fun. We had to rank the robots."],
-                ["SAY", "This is a live leaderboard of which agents call the PostHog MCP server the most. The agents did not ask for this, but we're having fun watching."],
+                ["SAY", "This is where agents were running when they called the PostHog MCP server last week. Claude Code is first, with almost 29% of the calls."],
+                ["SAY", "The agents did not ask for this, but we're having fun watching. It's live at posthog.com/mcp/leaderboard."],
                 ["SAY", "It runs on MCP Analytics, on our own server, so it's also what your own data looks like once your server is wrapped."],
-                ["TIP", "Give people a few seconds to scan the QR code before moving on."],
             ],
         },
         title: 'We *ranked the robots*',
-        sub: 'A live leaderboard of which agents call the PostHog MCP server the most. It runs on MCP Analytics, on our own server.',
-        qrs: [{ src: 'art/qr-leaderboard.svg', label: 'See who is winning', url: 'posthog.com/mcp/leaderboard' }],
+        sub: 'Where agents were running when they called the PostHog MCP server last week.',
+        // The public leaderboard at posthog.com/mcp/leaderboard, week of Nov 9 to 15 2026, as updated Nov 19.
+        chart: {
+            title: 'Share of tool calls, Nov 9 to 15',
+            unit: '%',
+            bars: [
+                { label: 'Claude Code', value: 28.7 },
+                { label: 'OpenAI (app not named)', value: 14.3 },
+                { label: 'Cursor', value: 11.3 },
+                { label: 'Cowork', value: 7.5 },
+                { label: 'Claude artifacts', value: 6.6 },
+            ],
+        },
+        foot: 'By lab, where the model is known: Anthropic 78.6%, OpenAI 17.9%, xAI 1.7%.',
         art: 'art/robot.svg',
     },
     {
@@ -412,6 +424,8 @@ function createStory(root, onChange) {
             }
             body.append(row)
         }
+        // The page draws charts the same way for an agent's answer and for a stop.
+        if (stop.chart) body.append(drawChart(stop.chart))
         if (stop.foot) body.append(text('p', 'foot', stop.foot))
         if (stop.stats) {
             const row = el('ol', stop.steps ? 'stats stepped' : 'stats')
