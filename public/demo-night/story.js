@@ -153,14 +153,13 @@ const STOPS = [
                 ["IF LATE", "Read the title and move on."],
             ],
         },
-        title: 'One Priya is a story. *134,000 of them* is a roadmap.',
-        sub: 'That was one customer, read by hand. Nobody reads 76 million traces. With a reason on every call, you stop reading and start asking.',
+        title: 'You can read one visit. You can’t read *76 million*.',
+        sub: 'PostHog’s own MCP server took 76 million tool calls from 134,000 people last month. When every call says why, you can ask questions instead.',
         tiles: [
             ['What do they want that you don’t have?', 'Your roadmap, ranked by demand'],
             ['Where do they give up?', 'Revenue you are losing today'],
             ['Who stopped coming back?', 'Retention, before it shows up as churn'],
         ],
-        foot: 'PostHog’s own MCP server took 76 million tool calls from 134,000 people last month.',
     },
     {
         kind: 'caption',
@@ -243,7 +242,7 @@ const STOPS = [
         title: 'MCP Analytics goes GA on *December 1*',
         sub: 'Out of beta, and ready for your production MCP server.',
         tiles: [
-            ['December 1', 'Generally available'],
+            ['Already in the beta?', 'Nothing changes in your setup'],
             ['One command', 'Wrap your server and go'],
             ['Ask anywhere', 'MCP client, PostHog AI or the API'],
         ],
@@ -439,7 +438,7 @@ function createStory(root, onChange) {
             body.append(row)
         }
         if (stop.fixes) {
-            body.append(text('p', 'foot', 'And the tools they kept tripping on, fixed:'))
+            body.append(text('p', 'foot', 'Tools agents kept failing on, before and after the fix:'))
             const row = el('ul', 'fixes')
             for (const [tool, change, number] of stop.fixes) {
                 const item = el('li')
