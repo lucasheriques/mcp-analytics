@@ -698,24 +698,24 @@
       inFlight = undefined
       feed.add(event)
     }
-    // Leaving before the story is over, even before its first action, records the rest plainly.
-    abandon = () => {
-      abandon = undefined
-      if (inFlight) record(inFlight)
-      for (const event of events.slice(i)) feed.add(event)
-      i = events.length
-    }
     const finish = () => {
       abandon = undefined
       cursor = undefined
       shownRuns = ''
       showRuns()
     }
+    // Leaving before the story is over, even before its first action, ends it at once: nothing of
+    // it stays in the air, and the rest is recorded plainly.
+    abandon = () => {
+      clearTimeout(telling)
+      for (const chip of document.querySelectorAll('.spark')) chip.remove()
+      if (inFlight) record(inFlight)
+      for (const event of events.slice(i)) feed.add(event)
+      i = events.length
+      finish()
+    }
     const next = () => {
-      if (level !== value || clientSide) {
-        abandon()
-        return finish()
-      }
+      if (level !== value || clientSide) return abandon()
       const event = events[i++]
       if (!event) return finish()
       const index = order.get(event.run) ?? 0
@@ -1487,6 +1487,7 @@
   }
 
   const arrive = (stop, step, paint) => {
+    if (!stop.level) abandon?.()
     document.querySelector('.legend').toggleAttribute('data-compact', stop.level > 1)
     paint()
     feed.setReveal(stop.steps && stop.level ? step + 1 : 4)
