@@ -221,9 +221,7 @@ const STOPS = [
             ],
         },
         title: 'Traces watch your server. MCP Analytics watches your *users*.',
-        // Optional, and not in the repository: drop an image at map/art/brain-meme.png (or .jpg or
-        // .webp) and it is shown beside the levels. Without one, each level draws its own brain.
-        picture: ['art/brain-meme.png', 'art/brain-meme.jpg', 'art/brain-meme.webp'],
+        picture: 'art/brain-meme.jpg',
         ladder: [
             ['Level 1', 'No observability', 'Every request is a 200.'],
             ['Level 2', 'Traces and logs', 'Which tool ran, for whom, and whether it failed.'],
@@ -445,17 +443,15 @@ function createStory(root, onChange) {
             frame.append(logo)
         }
         if (stop.picture) {
-            // Tries each candidate in turn and shows the first that exists.
-            const candidates = [...stop.picture]
+            // The picture stands in for the tiles, so the tiles stay out of sight unless it fails to load.
             const picture = el('img', 'story-art story-picture')
             picture.alt = ''
-            picture.hidden = true
-            picture.addEventListener('load', () => {
-                picture.hidden = false
-                frame.classList.add('with-picture')
+            frame.classList.add('with-picture')
+            picture.addEventListener('error', () => {
+                frame.classList.remove('with-picture')
+                picture.remove()
             })
-            picture.addEventListener('error', () => (candidates.length ? (picture.src = candidates.shift()) : picture.remove()))
-            picture.src = candidates.shift()
+            picture.src = stop.picture
             frame.append(picture)
         }
         if (stop.art) {
@@ -569,6 +565,8 @@ function createStory(root, onChange) {
             window.open('notes.html', 'merch-notes', 'width=720,height=820')
         }
     })
+    // Pictures are fetched up front, so a stop never paints before its art has arrived.
+    for (const stop of STOPS) for (const src of [stop.art, stop.picture]) if (src) new Image().src = src
     go((parseInt(new URLSearchParams(location.search).get('stop'), 10) || 1) - 1)
     // The cue tells the presenter whether the screen is still showing something or it is safe to move on.
     return {

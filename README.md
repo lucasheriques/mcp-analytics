@@ -16,7 +16,7 @@ This site collects what I learn while building MCP Analytics. Each page is its o
 
 The home page and the tale are one Vite app with two HTML entries (`index.html` and `tale/index.html`). The tale used to be the home page, so its old links still open it from the root: `?embed=1`, `?chapter=` and `?t=`. To add a page, add its card to `PAGES` in `src/Home.tsx`.
 
-`public/demo-night/` is a built copy, not source. It is a static page with one saved snapshot of a real agent session (`state.json`), so nothing in it calls a server. Arrow keys or Space move through it, `D` switches dark and light, `N` shows the speaker notes.
+`public/demo-night/` is the talk's source, plain HTML and JavaScript with no build step. The same files run two ways. Served by the demo server (the `merch-mcp` project, on `localhost:4870`) the page is live: it asks that server for `/state` and real agents run. Anywhere else nothing answers `/state`, so it shows `state.json`, a saved snapshot of a real session, and hides the controls that need a server. `pnpm snapshot` in `merch-mcp` rewrites `state.json` from the running demo. Arrow keys or Space move through the talk, `D` switches dark and light, `N` shows the speaker notes.
 
 ## Embed it
 
