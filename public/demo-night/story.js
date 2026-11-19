@@ -251,6 +251,22 @@ const STOPS = [
     },
     {
         kind: 'card',
+        kicker: 'One more thing, for fun',
+        notes: {
+            lines: [
+                ["SAY", "One more thing before we close, just for fun. We had to rank the robots."],
+                ["SAY", "This is a live leaderboard of which agents call the PostHog MCP server the most. The agents did not ask for this, but we're having fun watching."],
+                ["SAY", "It runs on MCP Analytics, on our own server, so it's also what your own data looks like once your server is wrapped."],
+                ["TIP", "Give people a few seconds to scan the QR code before moving on."],
+            ],
+        },
+        title: 'We *ranked the robots*',
+        sub: 'A live leaderboard of which agents call the PostHog MCP server the most. It runs on MCP Analytics, on our own server.',
+        qrs: [{ src: 'art/qr-leaderboard.svg', label: 'See who is winning', url: 'posthog.com/mcp/leaderboard' }],
+        art: 'art/robot.svg',
+    },
+    {
+        kind: 'card',
         kicker: 'One thing to take home',
         notes: {
             lines: [
