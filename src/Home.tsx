@@ -33,7 +33,7 @@ const PAGES: Page[] = [
         kind: 'Talk you can click through',
         title: 'One customer, three levels of sight',
         about: 'The talk I gave at MCP Analytics Demo Night. A real agent tries to buy a hoodie from a merch store MCP server, and you watch it with no observability, with traces, and with MCP Analytics.',
-        how: '15 stops. Arrow keys or Space to move.',
+        how: '16 stops. Arrow keys or Space to move.',
         open: 'Open the talk',
         poster: `${HOME_PATH}home/demo-night.jpg`,
         look: 'paper',
