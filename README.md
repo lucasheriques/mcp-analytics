@@ -4,6 +4,17 @@ A four-minute pixel-art story about product analytics for AI agents. Every frame
 
 Live: https://lucasheriques.github.io/mcp-analytics/
 
+## Pages
+
+This site collects what I learn while building MCP Analytics. Each page is its own folder.
+
+| Page | What it is |
+| --- | --- |
+| [`/`](https://lucasheriques.github.io/mcp-analytics/) | The 8-bit tale: a four-minute pixel-art story about product analytics for AI agents |
+| [`/demo-night/`](https://lucasheriques.github.io/mcp-analytics/demo-night/) | The MCP Analytics Demo Night talk (Hogpatch, Nov 19 2026): one customer's errand on a merch store MCP server, seen with no observability, with traces, and with MCP Analytics |
+
+`public/demo-night/` is a built copy, not source. It is a static page with one saved snapshot of a real agent session (`state.json`), so nothing in it calls a server. Arrow keys or Space move through it, `D` switches dark and light, `N` shows the speaker notes.
+
 ## Embed it
 
 Press "Copy embed code" in the "Embed it on your site" section of the page, or paste this. `embed-example.html` shows it on a plain page:

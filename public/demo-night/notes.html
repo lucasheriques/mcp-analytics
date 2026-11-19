@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Speaker notes</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>
+  * { box-sizing: border-box; margin: 0; }
+  body { min-height: 100vh; padding: 28px 32px; background: #12151f; color: #f4f1ea; font: 500 22px/1.45 ui-rounded, "SF Pro Rounded", system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+  header { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; font: 500 15px/1 ui-monospace, "SF Mono", Menlo, monospace; color: rgba(244, 241, 234, 0.6); font-variant-numeric: tabular-nums; }
+  #clock { padding: 6px 10px; border: 0; border-radius: 6px; background: rgba(244, 241, 234, 0.1); color: inherit; font: inherit; cursor: pointer; }
+  #clock:focus-visible { outline: 2px solid #f4f1ea; outline-offset: 2px; }
+  #slide { margin-top: 18px; font-size: 16px; color: rgba(244, 241, 234, 0.6); }
+  #lines { margin-top: 18px; display: grid; gap: 14px; }
+  #lines .say { font-size: 26px; line-height: 1.35; }
+  #lines .aside { font-size: 18px; color: #ffb38f; }
+  #lines b { font: 700 13px/1 ui-monospace, "SF Mono", Menlo, monospace; letter-spacing: 0.04em; color: #ff7a3d; }
+  #next { margin-top: 26px; font-size: 18px; color: rgba(244, 241, 234, 0.6); }
+</style>
+</head>
+<body>
+<header><span id="where">Open the deck in another window</span><button id="clock" type="button" title="Click to start again from zero">0:00</button></header>
+<p id="slide"></p>
+<div id="lines"></div>
+<p id="next"></p>
+<script>
+  const deck = new BroadcastChannel('merch-deck')
+  const $ = (id) => document.getElementById(id)
+  // The clock starts the first time the deck leaves its title.
+  let began
+  deck.addEventListener('message', ({ data }) => {
+    if (!data?.at) return
+    if (data.at > 1) began ??= Date.now()
+    const lines = data.notes?.lines ?? []
+    $('where').textContent = `${data.at} / ${data.of}` + (data.steps ? ` · press ${data.step} of ${data.steps}` : '')
+    $('slide').textContent = [data.kicker, data.title].filter(Boolean).join(' · ')
+    $('lines').replaceChildren(
+      ...lines.map(([label, line]) => {
+        const row = Object.assign(document.createElement('p'), { className: label === 'SAY' ? 'say' : 'aside', textContent: line })
+        if (label !== 'SAY') row.prepend(Object.assign(document.createElement('b'), { textContent: label + ': ' }))
+        return row
+      })
+    )
+    $('next').textContent = data.next ? `Next: ${data.next}` : 'Last stop'
+  })
+  deck.postMessage('hello')
+  setInterval(() => {
+    const seconds = began ? Math.floor((Date.now() - began) / 1000) : 0
+    $('clock').textContent = `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`
+  }, 500)
+  $('clock').addEventListener('click', () => (began = Date.now()))
+  // The clicker and the arrow keys drive the deck from here too, whichever window has focus.
+  document.addEventListener('keydown', (e) => {
+    if (e.metaKey || e.ctrlKey || e.altKey) return
+    if (['ArrowRight', 'PageDown', ' '].includes(e.key)) deck.postMessage('forward')
+    else if (['ArrowLeft', 'PageUp'].includes(e.key)) deck.postMessage('back')
+    else return
+    e.preventDefault()
+  })
+</script>
+</body>
+</html>
