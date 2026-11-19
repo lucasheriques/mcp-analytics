@@ -196,8 +196,8 @@ const STOPS = [
                 [118855, 118853],
             ],
             [
-                'A backlog written by agents',
-                'Agents built a funnel and couldn’t save it. They said so, in their own words, and it became a ranked list of fixes.',
+                'Agents can save what they build',
+                'Agents built funnels and dashboards, then failed to save them. They reported it through the MCP, and we fixed it.',
                 [100939, 117317],
             ],
         ],
