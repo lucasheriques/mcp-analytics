@@ -86,8 +86,8 @@ export default function Sight(): JSX.Element {
                     </button>
                 ))}
             </div>
-            <div className="grid gap-4 p-4 md:grid-cols-2">
-                <div className="min-h-56 rounded-lg bg-[#12151f] p-3 font-mono text-[13px] leading-6 text-[#c9ccd3]">
+            <div className="grid grid-cols-1 gap-4 p-4 md:grid-cols-2">
+                <div className="min-h-56 min-w-0 rounded-lg bg-[#12151f] p-3 font-mono text-[13px] leading-6 text-[#c9ccd3]">
                     <p className="mb-2 text-[#7d8494]">{level.source}</p>
                     <ol key={at} className="sight-in">
                         {level.rows.map((row, i) => (
