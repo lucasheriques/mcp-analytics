@@ -1013,7 +1013,11 @@
         toolCalls.filter((call) => kept.has(call.run)).reverse().forEach(onCall)
         restoring = false
         seen = latest
-        if (current?.level && !clientSide) retell(current.level)
+        if (current?.level && !clientSide) {
+          retell(current.level)
+          // A press that came before the session had loaded already asked for the errand.
+          if (pressed > 1) begin?.()
+        }
         playIfDue()
       }
       // A restarted server counts from zero again, so start over rather than wait to catch up.
@@ -1475,6 +1479,7 @@
   function startOver() {
     clearTimeout(telling)
     abandon = undefined
+    begin = undefined
     cursor = undefined
     cancels.splice(0).forEach((cancel) => cancel())
     example = undefined
@@ -1494,7 +1499,10 @@
     examplesToggle.querySelector('.state').textContent = 'off'
   }
 
+  // How many presses the current stop has had.
+  let pressed = 1
   const arrive = (stop, step, paint) => {
+    pressed = step
     if (!stop.level) abandon?.()
     document.querySelector('.legend').toggleAttribute('data-compact', stop.level > 1)
     paint()
