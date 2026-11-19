@@ -272,9 +272,9 @@
   .claude[hidden] { display: none; }
   /* The crossing: the server's side fades in while the conversation settles at the edge, and the
      other way round. Plain animations on the elements themselves, nothing the browser has to stage. */
-  body[data-crossing="server"] :is(#stage, .feed, .legend, .story-caption) { animation: fade-in 420ms ease-out backwards; }
+  body[data-crossing="server"] :is(#stage, .feed, .legend) { animation: fade-in 420ms ease-out backwards; }
   body[data-crossing="server"] .claude { animation: dock-in 420ms cubic-bezier(0.32, 0.72, 0, 1) backwards; }
-  body[data-crossing="client"] :is(.claude, .story-caption) { animation: fade-in 320ms ease-out backwards; }
+  body[data-crossing="client"] .claude { animation: fade-in 320ms ease-out backwards; }
   @keyframes fade-in { from { opacity: 0; } }
   /* Each stop arrives with one short rise, so a press reads as a step forward and not a cut. */
   .story-card > :not(.story-logo), .story-caption { animation: stop-in 240ms cubic-bezier(0.32, 0.72, 0, 1) backwards; }
@@ -545,7 +545,7 @@
   }
 </style>
 </head>
-<body>
+<body data-static>
 <!-- Dark mode's range: after the page is turned over, black lands on PostHog's ink (#23251d) and white on its paper (#fdfdf8). The second filter takes that back off, for pictures. -->
 <svg width="0" height="0" style="position: absolute" aria-hidden="true">
   <filter id="dark-range" color-interpolation-filters="sRGB">
@@ -914,19 +914,24 @@
   // comes from the server. Anywhere else there is no /state to answer, so it shows one saved snapshot
   // of a real session, and nothing can be asked or started over.
   let live
+  let saved
   async function readState() {
     live ??= (async () => {
       try {
         const response = await fetch('/state', { signal: AbortSignal.timeout(1500) })
-        return response.ok && (response.headers.get('content-type') ?? '').includes('json')
+        if (!response.ok || !(response.headers.get('content-type') ?? '').includes('json')) return false
+        return Array.isArray((await response.json()).runs)
       } catch {
         return false
       }
     })().then((answered) => {
+      // The page starts out marked as saved, so nothing that needs the server shows before it is known to be there.
       document.body.toggleAttribute('data-static', !answered)
       return answered
     })
-    return (await fetch((await live) ? '/state' : 'state.json')).json()
+    if (await live) return (await fetch('/state')).json()
+    saved ??= fetch('state.json').then((response) => response.json())
+    return saved
   }
 
   async function poll(seen) {
