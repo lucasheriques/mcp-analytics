@@ -255,18 +255,15 @@ const STOPS = [
         notes: {
             lines: [
                 ["SAY", "If you remember one thing from tonight: ask your agents why they're calling. You can do that without PostHog. We make it one line."],
-                ["SAY", "The first QR code goes to the docs. The second one is this talk, so you can click through it yourself."],
+                ["SAY", "The QR code goes to the docs. The talk itself is online too, at the address on screen, so you can click through it yourself."],
                 ["SAY", "I lead the MCP Analytics team at PostHog, and the team is here tonight: Mike, Georgis and Marco. Grab any of us if you want help setting it up."],
                 ["SAY", "Thanks for coming."],
             ],
         },
         title: 'Ask your agents *why*.',
         sub: 'The team is around tonight for setup help. Find Lucas, Mike, Georgis or Marco.',
-        qrs: [
-            { src: 'art/qr-docs.svg', label: 'Read the docs', url: 'posthog.com/docs/mcp-analytics' },
-            { src: 'art/qr-talk.svg', label: 'This talk, to click through', url: 'lucasheriques.github.io/mcp-analytics/demo-night' },
-            { label: 'We ranked the robots', url: 'posthog.com/mcp/leaderboard' },
-        ],
+        qrs: [{ src: 'art/qr-docs.svg', label: 'Read the docs', url: 'posthog.com/docs/mcp-analytics' }],
+        foot: 'This talk is at lucasheriques.github.io/mcp-analytics',
         art: 'art/party.svg',
     },
 ]

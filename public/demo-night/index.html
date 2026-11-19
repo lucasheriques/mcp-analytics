@@ -211,7 +211,7 @@
   .story .code code.alt::before { content: "it adds  "; color: inherit; }
 
   .story .qr { display: flex; align-items: center; gap: 18px; padding: 14px 20px 14px 14px; border: 2px solid var(--navy); border-radius: 12px; box-shadow: 4px 4px 0 var(--navy); background: #fff; }
-  .story .qr img { width: clamp(90px, 8vw, 130px); height: auto; display: block; }
+  .story .qr img { width: clamp(110px, 11vw, 170px); height: auto; display: block; }
   .story .qr .url { font: 600 clamp(16px, 1.5vw, 24px)/1.3 var(--mono); margin-top: 8px; }
 
   /* The map controls stay out of the way while a card is up. */
@@ -689,10 +689,19 @@
     feed.rewind(channel)
     const order = new Map()
     let i = 0
+    // The action that has left the conversation and is not in the log yet.
+    let inFlight
+    const record = (event) => {
+      if (inFlight !== event) return
+      inFlight = undefined
+      feed.add(event)
+    }
     // Leaving before the story is over, even before its first action, records the rest plainly.
     abandon = () => {
       abandon = undefined
+      if (inFlight) record(inFlight)
       for (const event of events.slice(i)) feed.add(event)
+      i = events.length
     }
     const finish = () => {
       abandon = undefined
@@ -712,27 +721,43 @@
       cursor = { run: String(event.run), index }
       shownRuns = ''
       showRuns()
+      inFlight = event
+      const began = performance.now()
+      // At level 3 the customer's figure sets the pace. It sets off as the action leaves, the record
+      // lands when it gets to the tool, and the next action waits for that, so the map and the log
+      // never run ahead of each other.
+      const walked =
+        value === 3
+          ? new Promise((arrived) => {
+              event.arrived = arrived
+              setTimeout(arrived, 6000)
+              draw(event)
+            })
+          : undefined
       // One action, three beats: it leaves the conversation, it reaches the tool, it becomes a record.
       // The server's side only changes when the marker gets there, so cause is always seen before effect.
       cross(
         event,
         value,
         () => {
-          if (level !== value) return
-          if (value === 2) {
-            scene.onEvent(event)
-            heard(event)
-          }
-          if (value === 3) draw(event)
+          if (level !== value || value !== 2) return
+          scene.onEvent(event)
+          heard(event)
         },
-        () => feed.add(event)
+        () => {
+          if (inFlight !== event) return
+          record(event)
+          if (walked) telling = setTimeout(next, Math.max(700, PACE[value] - (performance.now() - began)))
+        },
+        walked
       )
-      telling = setTimeout(next, PACE[value])
+      if (!walked) telling = setTimeout(next, PACE[value])
     }
     // The analytics map takes a few seconds to colour in the first time, and journeys wait for it.
     telling = setTimeout(next, value === 3 ? 4200 : 500)
   }
-  // Slow enough to read each action as it happens. Level 3 is slowest: its figure has to walk there.
+  // Slow enough to read each action as it happens. At level 3 this is the least an action takes: its
+  // figure has to walk there, and a long walk takes longer.
   const PACE = { 1: 1200, 2: 1600, 3: 1800 }
 
   // What crosses the line for one action, written on the thing that crosses. At level 1 that is only a
@@ -746,13 +771,14 @@
   // The marker travels from the action in the customer's conversation, across the line, to that tool's
   // place on the map, and then down to the log. `reached` runs when it gets to the tool and `recorded`
   // when it gets to the log. At level 1 the server does not know which tool it was, so the marker goes
-  // straight to the log.
-  function cross(event, value, reached, recorded) {
+  // straight to the log. Given `walked`, the marker waits at the tool until that settles, which is how
+  // it keeps step with the figure walking there.
+  function cross(event, value, reached, recorded, walked) {
     const from = claude.querySelector('.use[data-now]')?.getBoundingClientRect()
     const log = [...document.querySelectorAll('.feed .record')].find((list) => list.offsetParent)?.getBoundingClientRect()
     if (!from?.width || !log?.width || matchMedia('(prefers-reduced-motion: reduce)').matches) {
       reached()
-      return recorded()
+      return walked ? void walked.then(recorded) : recorded()
     }
     const label =
       value > 1
@@ -773,6 +799,34 @@
     const start = [from.left + 60, from.top + from.height / 2]
     const end = [log.left + 150, log.bottom - 20]
     const tool = place?.width ? [place.left + place.width / 2, place.top - 16] : undefined
+    // The tool answers an arrival with a small beat on its name.
+    const beat = () => label?.animate([{ scale: 1 }, { scale: 1.2, offset: 0.35 }, { scale: 1 }], { duration: 380, easing: 'ease-out' })
+    if (tool && walked) {
+      const out = chip.animate(
+        [
+          { transform: at(...start, 0.9), opacity: 0, easing: 'ease-out' },
+          { transform: at(...start), opacity: 1, offset: 0.1, easing: glide },
+          { transform: at(...tool), opacity: 1 },
+        ],
+        { duration: 1200, fill: 'forwards' }
+      )
+      Promise.all([out.finished, walked])
+        .then(() => {
+          reached()
+          beat()
+          return chip.animate(
+            [
+              { transform: at(...tool), opacity: 1, easing: glide },
+              { transform: at(...end), opacity: 1, offset: 0.85, easing: 'ease-in' },
+              { transform: at(...end, 0.96), opacity: 0 },
+            ],
+            { duration: 420, fill: 'forwards' }
+          ).finished
+        })
+        .then(recorded, recorded)
+        .finally(() => chip.remove())
+      return
+    }
     const frames = tool
       ? [
           { transform: at(...start, 0.9), opacity: 0, easing: 'ease-out' },
@@ -792,10 +846,10 @@
     chip.animate(frames, { duration }).finished.finally(() => chip.remove())
     setTimeout(() => {
       reached()
-      // The tool answers the arrival with a small beat on its name.
-      label?.animate([{ scale: 1 }, { scale: 1.2, offset: 0.35 }, { scale: 1 }], { duration: 380, easing: 'ease-out' })
+      beat()
     }, tool ? duration * 0.48 : 0)
-    setTimeout(recorded, duration * 0.92)
+    const landed = new Promise((done) => setTimeout(done, duration * 0.92))
+    Promise.all([landed, walked]).then(recorded)
   }
 
   const held = []

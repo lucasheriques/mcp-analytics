@@ -244,8 +244,18 @@ function createScene(stage, spec) {
         // A plain call carries no session or intent. Its tick is always marked on the plain view, even
         // while the analytics view is the one showing, so stepping back finds it there.
         const route = installed && event.channel !== 'raw' ? world.route(event) : world.wild(event)
-        if (!route || (installed && event.channel === 'raw')) return
+        if (!route || (installed && event.channel === 'raw')) {
+            event.arrived?.()
+            return
+        }
         const agent = { ...route, u: reduced ? (route.hold?.u ?? 1) : 0, held: 0, out: 0, age: 0, arrived: false }
+        // Whoever sent the event can ask to be told when its figure gets to the tool.
+        if (event.arrived) {
+            agent.arrive = (self) => {
+                route.arrive?.(self)
+                event.arrived()
+            }
+        }
         // A session is one walker: its next call takes over from wherever the last one stopped.
         for (const earlier of agents) {
             if (route.session === undefined || earlier.session !== route.session) continue
