@@ -251,31 +251,59 @@ const STOPS = [
     },
     {
         kind: 'card',
-        kicker: 'One more thing, for fun',
+        kicker: 'One more thing, for fun · PostHog’s MCP server, Nov 9 to 15',
         notes: {
             lines: [
                 ["SAY", "One more thing before we close, just for fun. We had to rank the robots."],
-                ["SAY", "This is where agents were running when they called the PostHog MCP server last week. Claude Code is first, with almost 29% of the calls."],
+                ["SAY", "This is last week on the PostHog MCP server. Claude Code is where most agents run, Opus is the model behind 60% of the calls, and more than half of what they do is SQL."],
+                ["SAY", "My favorite ones are at the bottom. Agents tell us why they're calling 87% of the time. And when a call fails, 83% of the time it's the agent sending bad arguments, not the tool breaking."],
+                ["TIP", "Pick two or three numbers. Do not read the whole slide."],
                 ["SAY", "The agents did not ask for this, but we're having fun watching. It's live at posthog.com/mcp/leaderboard."],
                 ["SAY", "It runs on MCP Analytics, on our own server, so it's also what your own data looks like once your server is wrapped."],
             ],
         },
         title: 'We *ranked the robots*',
-        sub: 'Where agents were running when they called the PostHog MCP server last week.',
-        // The public leaderboard at posthog.com/mcp/leaderboard, week of Nov 9 to 15 2026, as updated Nov 19.
-        chart: {
-            title: 'Share of tool calls, Nov 9 to 15',
-            unit: '%',
-            bars: [
-                { label: 'Claude Code', value: 28.7 },
-                { label: 'OpenAI (app not named)', value: 14.3 },
-                { label: 'Cursor', value: 11.3 },
-                { label: 'Cowork', value: 7.5 },
-                { label: 'Claude artifacts', value: 6.6 },
-            ],
-        },
-        foot: 'By lab, where the model is known: Anthropic 78.6%, OpenAI 17.9%, xAI 1.7%.',
-        art: 'art/robot.svg',
+        // The public leaderboard at posthog.com/mcp/leaderboard, week of Nov 9 to 15 2026, as fetched Nov 19.
+        charts: [
+            {
+                title: 'Where agents run',
+                unit: '%',
+                bars: [
+                    { label: 'Claude Code', value: 28.7 },
+                    { label: 'OpenAI (unnamed app)', value: 14.3 },
+                    { label: 'Cursor', value: 11.3 },
+                    { label: 'Cowork', value: 7.5 },
+                    { label: 'Claude artifacts', value: 6.6 },
+                ],
+            },
+            {
+                title: 'Which model they use',
+                unit: '%',
+                bars: [
+                    { label: 'claude-opus-5-5', value: 60.0 },
+                    { label: 'claude-fable-5-2', value: 9.6 },
+                    { label: 'gpt-6.1-sol', value: 6.2 },
+                    { label: 'gpt-6', value: 5.6 },
+                    { label: 'claude-sonnet-5-5', value: 2.7 },
+                ],
+            },
+            {
+                title: 'What they do',
+                unit: '%',
+                bars: [
+                    { label: 'SQL', value: 57.7 },
+                    { label: 'Data schema', value: 6.1 },
+                    { label: 'Project management', value: 4.0 },
+                    { label: 'Product analytics', value: 3.3 },
+                ],
+            },
+        ],
+        stats: [
+            { value: '87%', label: 'of calls come with a reason, in the agent’s own words' },
+            { value: '83%', label: 'of failed calls are bad arguments, not broken tools' },
+            { value: '0.9% vs 3.3%', label: 'calls with bad arguments: gpt-6.1 against claude-opus-5-5' },
+            { value: '91%', label: 'sign in with OAuth. The rest paste an API key.' },
+        ],
     },
     {
         kind: 'card',
@@ -425,13 +453,18 @@ function createStory(root, onChange) {
             body.append(row)
         }
         // The page draws charts the same way for an agent's answer and for a stop.
-        if (stop.chart) body.append(drawChart(stop.chart))
+        if (stop.charts) {
+            const row = el('div', 'charts')
+            row.append(...stop.charts.map(drawChart))
+            body.append(row)
+        }
         if (stop.foot) body.append(text('p', 'foot', stop.foot))
         if (stop.stats) {
             const row = el('ol', stop.steps ? 'stats stepped' : 'stats')
             for (const stat of stop.stats) {
                 const tile = el('li')
-                tile.append(picture(stat), text('strong', '', stat.value), text('span', '', stat.label))
+                if (stat.share || stat.series) tile.append(picture(stat))
+                tile.append(text('strong', '', stat.value), text('span', '', stat.label))
                 if (stat.pr) {
                     const [number, month] = stat.pr
                     const link = text('a', 'pr', `#${number} · ${month}`)
