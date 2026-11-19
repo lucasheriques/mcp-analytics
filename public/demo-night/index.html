@@ -1,0 +1,1501 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Merch Store Map</title>
+<link rel="icon" type="image/svg+xml" href="art/favicon.svg" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<script>
+  // Before anything paints, so a reload in dark mode does not flash light.
+  try {
+    const asked = new URLSearchParams(location.search).get('theme')
+    if ((asked ?? localStorage.getItem('merch-theme')) === 'dark') document.documentElement.dataset.theme = 'dark'
+  } catch {}
+</script>
+<style>
+  @font-face { font-family: "RoundHog"; font-weight: 500; src: url("fonts/RoundHog-Medium.woff2") format("woff2"); font-display: swap; }
+  @font-face { font-family: "RoundHog"; font-weight: 600; src: url("fonts/RoundHog-SemiBold.woff2") format("woff2"); font-display: swap; }
+  @font-face { font-family: "RoundHog"; font-weight: 500; font-style: italic; src: url("fonts/RoundHog-Medium-Italic.woff2") format("woff2"); font-display: swap; }
+
+  :root {
+    --brand: #f54e00;
+    --font: "RoundHog", ui-rounded, "SF Pro Rounded", system-ui, sans-serif;
+    --mono: ui-monospace, "SF Mono", Menlo, monospace;
+    --focus-in: cubic-bezier(0.45, 0, 0.2, 1);
+  }
+  * { box-sizing: border-box; margin: 0; }
+  /* Dark mode turns the whole page over once, keeping every hue, and turns pictures back so drawings, the meme and the QR code stay as they were made. */
+  html[data-theme="dark"] { filter: invert(1) hue-rotate(180deg) url(#dark-range); }
+  html[data-theme="dark"] :is(img:not(.story-logo), .terminal) { filter: url(#dark-range-undo) hue-rotate(180deg) invert(1); }
+  .speaker { position: fixed; left: 20px; bottom: 16px; z-index: 12; width: min(480px, 42vw); max-height: 70vh; overflow: auto; padding: 14px 16px; border: 2px solid #151b2e; border-radius: 12px; box-shadow: 4px 4px 0 #151b2e; background: #fffdf7; color: #151b2e; font: 500 15px/1.4 var(--font); }
+  .speaker[hidden] { display: none; }
+  .speaker p + p { margin-top: 8px; }
+  .speaker .aside { font-size: 13.5px; color: rgba(21, 27, 46, 0.7); }
+  .speaker b { font: 700 11px/1 var(--mono); letter-spacing: 0.04em; color: var(--brand); }
+  html, body { height: 100%; overflow: hidden; background: #efe6d2; }
+  body { font-family: var(--font); font-weight: 500; -webkit-font-smoothing: antialiased; }
+
+  /* The map stops short of the bottom edge, so the log and the board sit on bare paper and not over its tools. */
+  #stage { position: fixed; inset: 0 0 170px; overflow: hidden; }
+  #stage.dark { --ink: #f4f1ea; --dim: rgba(244, 241, 234, 0.72); --scrim: rgba(16, 19, 27, 0.74); --edge: #2c303a; --warn: #ff9d7a; }
+  #stage.light { --ink: #23261f; --dim: rgba(35, 38, 31, 0.74); --scrim: rgba(250, 246, 236, 0.9); --edge: rgba(0, 0, 0, 0.1); --warn: #b23a12; }
+
+  .layer { position: absolute; inset: 0; width: 100%; height: 100%; }
+  /* Before install the painting is out of focus; installing brings it in once, slowly, because it is the moment of the demo. */
+  .base { filter: blur(7px) saturate(0.75); transition: filter 2400ms var(--focus-in); }
+  #stage[data-installed] .base { filter: none; }
+  #stage.drawn .base { filter: none; transition: none; }
+  #stage.drawn .name {
+    font: italic 500 16px/1 var(--font); padding: 5px 9px; border-radius: 3px;
+    background: rgba(250, 244, 230, 0.94); border: 1px solid rgba(74, 70, 80, 0.3);
+  }
+  #stage.drawn .name.faint { background: none; border-color: transparent; color: rgba(74, 70, 80, 0.75); }
+  #stage.drawn .fail { font-style: normal; }
+  #stage.drawn .tag, #stage.drawn .list { border-radius: 4px; border: 1px solid rgba(74, 70, 80, 0.3); background: rgba(250, 244, 230, 0.95); }
+
+  .notes { position: absolute; inset: 0; color: var(--ink); pointer-events: none; }
+  /* Each view keeps its own marks and labels; only the one in force is shown. */
+  #stage:not([data-installed]) :is(.over, .notes-after) { visibility: hidden; }
+  #stage[data-installed] :is(.before, .notes-before) { visibility: hidden; }
+  .pin { position: absolute; }
+  .pin.below { transform: translate(-50%, 0); }
+  .pin.above { transform: translate(0, -100%); }
+  .pin.below-left { transform: translate(-100%, 0); }
+  .pin.beside { transform: translate(0, -50%); }
+  .pin.board-pin { transform: translate(0, -100%); }
+
+  .name {
+    display: block; white-space: nowrap; font: 500 14px/1 var(--mono);
+    padding: 5px 8px; border-radius: 6px; background: var(--scrim); color: var(--ink);
+  }
+  .fail { color: var(--warn); font-family: var(--font); font-weight: 600; }
+
+  .tag {
+    position: absolute; left: 0; top: 0; max-width: 27ch; text-align: center; text-wrap: balance;
+    font: italic 500 17px/1.25 var(--font); padding: 7px 11px; border-radius: 9px;
+    background: var(--scrim); color: var(--ink);
+    opacity: 0; transition: opacity 180ms ease-out; will-change: transform;
+    display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
+  }
+  .tag[data-on] { opacity: 1; }
+
+  .list { min-width: 230px; max-width: 320px; padding: 12px 14px; border-radius: 10px; background: var(--scrim); border: 1px solid var(--edge); }
+  .list h3 { font: 600 12px/1 var(--font); letter-spacing: 0.09em; text-transform: uppercase; color: var(--dim); margin-bottom: 9px; }
+  .list ul { list-style: none; padding: 0; display: grid; gap: 6px; }
+  .list li { display: flex; gap: 14px; justify-content: space-between; align-items: baseline; font-size: 17px; line-height: 1.25; }
+  .list li span { text-wrap: pretty; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+  .list li b { font-weight: 600; font-variant-numeric: tabular-nums; color: var(--dim); }
+  .list li.enter { animation: row-in 220ms cubic-bezier(0.32, 0.72, 0, 1); }
+  @keyframes row-in { from { opacity: 0; transform: translateY(6px); } }
+
+  .board { display: grid; gap: 8px; width: min(340px, 26vw); }
+  .board .list { max-width: none; }
+
+  .chip {
+    position: fixed; top: 24px; left: 24px; z-index: 10; height: 44px; padding: 0 14px;
+    display: flex; align-items: center; gap: 10px; cursor: pointer;
+    border: 1px solid #2c303a; border-radius: 10px; background: rgba(14, 16, 22, 0.78);
+    -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+    color: rgba(255, 255, 255, 0.62); font: 500 15px/1 var(--mono);
+    transition: color 150ms ease-out, border-color 150ms ease-out, scale 150ms ease-out;
+  }
+  button.chip:active { scale: 0.97; }
+  .chip:focus-visible { outline: 2px solid rgba(255, 255, 255, 0.5); outline-offset: 2px; }
+  .chip kbd { font: inherit; font-size: 12px; padding: 3px 6px; border-radius: 5px; background: rgba(255, 255, 255, 0.1); }
+  @media (hover: hover) and (pointer: fine) { button.chip:hover { color: #fff; } }
+
+  /* The talk: cards and captions laid over the map, in the style of the demo night deck. */
+  .story { --navy: #151b2e; --peach: #ffd9a8; position: fixed; inset: 0; z-index: 5; color: var(--navy); pointer-events: none; }
+  .story h1 { font: 700 clamp(34px, 4.6vw, 76px)/1.08 "Iowan Old Style", "Charter", "Georgia", serif; letter-spacing: -0.01em; text-wrap: balance; }
+  .story mark { background: var(--peach); color: inherit; padding: 0 0.12em; border-radius: 4px; }
+  .story .kicker { font: 600 clamp(12px, 1vw, 15px)/1 var(--font); letter-spacing: 0.12em; text-transform: uppercase; color: rgba(21, 27, 46, 0.68); }
+  .story .sub { font: 500 clamp(18px, 1.7vw, 27px)/1.35 var(--font); max-width: 34em; text-wrap: pretty; color: rgba(21, 27, 46, 0.82); }
+  .story .foot { font: 600 clamp(16px, 1.4vw, 22px)/1.35 var(--font); max-width: 40em; }
+  .story-body { display: grid; gap: clamp(14px, 1.8vw, 28px); align-content: center; justify-items: start; }
+
+  .story-card {
+    position: absolute; inset: 0; pointer-events: auto; background: #f8f3e7;
+    display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 4vw;
+    padding: 6vh max(6vw, 32px) 12vh;
+  }
+  .story-art { width: min(30vw, 46vh); height: auto; }
+  .story-picture { width: auto; max-width: min(40vw, 640px); max-height: 78vh; border: 2px solid var(--navy); border-radius: 12px; box-shadow: 4px 4px 0 var(--navy); }
+  .story-picture[hidden] { display: none; }
+  /* With the picture in place it tells the four levels by itself, so the tiles step aside. */
+  .story .with-picture .ladder { display: none; }
+  .story-logo { position: absolute; left: max(6vw, 32px); bottom: 5vh; width: clamp(110px, 9vw, 150px); height: auto; }
+
+  .story-caption {
+    position: absolute; left: 298px; right: 172px; top: 24px; width: fit-content; max-width: 700px;
+    padding: 14px 20px; border-radius: 6px; background: rgba(250, 246, 236, 0.95); border: 1px solid rgba(74, 70, 80, 0.3);
+  }
+  .story-caption .story-body { gap: 8px; }
+  .story-caption h1 { font-size: clamp(20px, 2vw, 32px); text-wrap: pretty; }
+
+  .story .tiles { list-style: none; padding: 0; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: clamp(12px, 1.4vw, 22px); width: min(100%, 980px); counter-reset: tile; }
+  .story .tiles li {
+    display: grid; gap: 6px; align-content: start; padding: clamp(14px, 1.4vw, 22px); border: 2px solid var(--navy); border-radius: 12px;
+    box-shadow: 4px 4px 0 var(--navy); background: #a9daf8;
+  }
+  .story .tiles li:nth-child(2) { background: #ffd3a6; }
+  .story .tiles li:nth-child(3) { background: #b4efdc; }
+  .story .tiles strong { font: 700 clamp(17px, 1.6vw, 25px)/1.2 "Iowan Old Style", "Charter", "Georgia", serif; }
+  .story .tiles span { font: 500 clamp(14px, 1.1vw, 18px)/1.3 var(--font); }
+
+  .story .stats { list-style: none; padding: 0; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: clamp(12px, 1.4vw, 22px); width: 100%; }
+  .story .stats li { display: grid; gap: 8px; align-content: start; padding: clamp(16px, 1.6vw, 26px); border: 2px solid var(--navy); border-radius: 12px; box-shadow: 4px 4px 0 var(--navy); background: #fffdf7; animation: row-in 280ms cubic-bezier(0.32, 0.72, 0, 1) backwards; }
+  .story .stats strong { font: 700 clamp(26px, 2.8vw, 46px)/1 "Iowan Old Style", "Charter", "Georgia", serif; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .story .stats:has(li:nth-child(4)) strong { font-size: clamp(20px, 2.3vw, 40px); }
+  .story .stats:has(li:nth-child(5)) strong { font-size: clamp(17px, 1.85vw, 32px); }
+  .story .stats:has(li:nth-child(5)) li { padding: clamp(12px, 1.2vw, 20px); }
+  .story .stats .pr { justify-self: start; margin-top: 4px; font: 500 clamp(11px, 0.95vw, 15px)/1.2 var(--mono); color: rgba(21, 27, 46, 0.7); text-decoration: underline; text-underline-offset: 3px; }
+  .story .stats .pr:focus-visible { outline: 2px solid var(--navy); outline-offset: 2px; }
+  .story .stats span { font: 500 clamp(15px, 1.25vw, 20px)/1.3 var(--font); color: rgba(21, 27, 46, 0.82); text-wrap: pretty; }
+  .story .pic { display: flex; align-items: flex-end; gap: 6px; height: clamp(56px, 6vw, 92px); margin-bottom: 6px; }
+  .story .pic i { flex: 0 1 clamp(18px, 1.9vw, 28px); min-width: 0; aspect-ratio: 1; border: 2px solid var(--navy); border-radius: 5px; }
+  .story .pic[data-of="3"] i { flex-basis: clamp(30px, 3vw, 46px); border-radius: 50%; }
+  .story .pic i.on { background: var(--brand); }
+  .story .pic.line { display: block; position: relative; margin-right: 8px; }
+  .story .pic.line svg { display: block; width: 100%; height: 100%; overflow: visible; }
+  .story .pic.line .area { fill: rgba(21, 27, 46, 0.08); }
+  .story .pic.line .trace { fill: none; stroke: var(--navy); stroke-width: 3; stroke-linejoin: round; stroke-linecap: round; }
+  .story .pic.line .end { position: absolute; width: 14px; height: 14px; margin: -7px 0 0 -7px; aspect-ratio: auto; flex: none; border: 2px solid #fffdf7; border-radius: 50%; background: var(--brand); }
+  /* A card with steps shows one tile per press, so the room reads one number at a time. */
+  .story[data-step="1"] .stepped li:nth-child(n + 2), .story[data-step="2"] .stepped li:nth-child(n + 3), .story[data-step="3"] .stepped li:nth-child(n + 4) { visibility: hidden; animation: none; }
+  .story .qrs { display: flex; flex-wrap: wrap; align-items: stretch; gap: 18px; }
+  .story .qr:not(:has(img)) { padding-left: 20px; }
+
+  .story .quote { margin: 0; padding: clamp(14px, 1.6vw, 24px) clamp(18px, 2vw, 30px); border: 2px solid var(--navy); border-radius: 12px; box-shadow: 4px 4px 0 var(--navy); background: #fffdf7; font: italic 500 clamp(22px, 2.4vw, 38px)/1.3 var(--font); max-width: 26em; text-wrap: balance; }
+  /* The three levels as steps that climb: each one is taller and sees more than the last. */
+  .story .ladder { list-style: none; padding: 0; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); align-items: end; gap: clamp(12px, 1.4vw, 22px); width: min(100%, 1040px); }
+  .story .ladder li { display: grid; gap: 6px; align-content: start; padding: clamp(14px, 1.4vw, 22px); border: 2px solid var(--navy); border-radius: 12px; box-shadow: 4px 4px 0 var(--navy); background: #e9e4d6; min-height: clamp(120px, 12vw, 180px); }
+  .story .ladder li:nth-child(2) { background: #a9daf8; min-height: clamp(150px, 15vw, 230px); }
+  .story .ladder li:nth-child(3) { background: #ffd3a6; min-height: clamp(180px, 18vw, 280px); }
+  .story .brain { width: clamp(44px, 4.4vw, 68px); margin-bottom: 2px; }
+  .story .brain-2 { width: clamp(58px, 5.8vw, 90px); }
+  .story .brain-3 { width: clamp(76px, 7.6vw, 118px); }
+  .story .brain svg { display: block; width: 100%; height: auto; overflow: visible; }
+  .story .brain .lobe { fill: #cfc8b8; stroke: var(--navy); stroke-width: 2.5; stroke-linejoin: round; }
+  .story .brain .fold { fill: none; stroke: var(--navy); stroke-width: 2; stroke-linecap: round; }
+  .story .brain .ray { stroke: var(--navy); stroke-width: 2.5; stroke-linecap: round; }
+  .story .brain-2 .lobe { fill: #fffdf7; }
+  .story .brain-3 .lobe { fill: #fffdf7; }
+  .story .brain-3 .ray { stroke: var(--brand); stroke-width: 3; }
+  .story .brain-3 svg { filter: drop-shadow(0 0 10px rgba(245, 78, 0, 0.45)); }
+  .story .brain-4 { width: clamp(88px, 8.8vw, 136px); }
+  .story .brain-4 .lobe { fill: #fffdf7; }
+  .story .brain-4 .ray { stroke: var(--brand); stroke-width: 3; }
+  .story .brain-4 svg { filter: drop-shadow(0 0 16px rgba(245, 78, 0, 0.7)); }
+  .story .ladder li:nth-child(4) { background: #b4efdc; min-height: clamp(210px, 21vw, 330px); }
+  .story .ladder .rung { font: 600 clamp(11px, 0.9vw, 14px)/1 var(--font); letter-spacing: 0.12em; text-transform: uppercase; color: rgba(21, 27, 46, 0.68); }
+  .story .ladder strong { font: 700 clamp(18px, 1.8vw, 28px)/1.15 "Iowan Old Style", "Charter", "Georgia", serif; }
+  .story .ladder li > span:last-child { font: 500 clamp(14px, 1.2vw, 19px)/1.3 var(--font); }
+
+  .story .tiles .prs { display: flex; gap: 12px; margin-top: 4px; font: 500 clamp(11px, 0.95vw, 15px)/1.2 var(--mono); }
+  .story .tiles .prs a { color: rgba(21, 27, 46, 0.75); text-underline-offset: 3px; }
+  .story .tiles .prs a:focus-visible { outline: 2px solid var(--navy); outline-offset: 2px; }
+  .story .fixes { list-style: none; padding: 0; display: flex; flex-wrap: wrap; gap: 10px; }
+  .story .fixes li { display: grid; gap: 3px; padding: 10px 14px; border: 2px solid var(--navy); border-radius: 10px; background: #fffdf7; }
+  .story .fixes strong { font: 600 clamp(13px, 1.1vw, 17px)/1.2 var(--mono); }
+  .story .fixes span { font: 700 clamp(15px, 1.4vw, 22px)/1.1 "Iowan Old Style", "Charter", "Georgia", serif; font-variant-numeric: tabular-nums; }
+  .story .fixes a { font: 500 clamp(11px, 0.9vw, 14px)/1.2 var(--mono); color: rgba(21, 27, 46, 0.7); text-underline-offset: 3px; }
+  .story .fixes a:focus-visible { outline: 2px solid var(--navy); outline-offset: 2px; }
+
+  .story .chips { list-style: none; padding: 0; display: flex; flex-wrap: wrap; gap: 10px; max-width: 46em; }
+  .story .chips li { padding: 8px 12px; border-radius: 8px; border: 2px solid var(--navy); background: #fffdf7; font: 500 clamp(14px, 1.3vw, 20px)/1 var(--mono); }
+
+  .story .code { display: grid; gap: 10px; margin: 0; padding: clamp(16px, 1.8vw, 28px) clamp(18px, 2.2vw, 34px); border-radius: 12px; background: var(--navy); box-shadow: 4px 4px 0 var(--brand); }
+  .story .code code { font: 500 clamp(22px, 2.9vw, 46px)/1.2 var(--mono); color: #fdf8ec; }
+  .story .code code::before { content: "$ "; color: var(--brand); }
+  .story .code code.alt { font-size: clamp(14px, 1.3vw, 20px); color: rgba(253, 248, 236, 0.62); }
+  .story .code code.alt::before { content: "it adds  "; color: inherit; }
+
+  .story .qr { display: flex; align-items: center; gap: 18px; padding: 14px 20px 14px 14px; border: 2px solid var(--navy); border-radius: 12px; box-shadow: 4px 4px 0 var(--navy); background: #fff; }
+  .story .qr img { width: clamp(110px, 11vw, 170px); height: auto; display: block; }
+  .story .qr .url { font: 600 clamp(16px, 1.5vw, 24px)/1.3 var(--mono); margin-top: 8px; }
+
+  /* The map controls stay out of the way while a card is up. */
+  body:has(.story[data-kind="card"]) .chip, body:has(.story[data-kind="card"]) .prompts { display: none; }
+
+  .story-nav { position: fixed; right: 20px; bottom: 16px; z-index: 11; display: flex; align-items: center; gap: 4px; padding: 4px; border-radius: 999px; background: rgba(250, 246, 236, 0.92); font: 500 13px/1 var(--mono); color: rgba(21, 27, 46, 0.8); }
+  .story-nav span { min-width: 6ch; white-space: nowrap; padding: 0 4px; text-align: center; font-variant-numeric: tabular-nums; }
+  .story-nav button {
+    width: 44px; height: 44px; border: 0; border-radius: 8px; background: transparent; color: inherit; font: inherit; font-size: 18px; cursor: pointer;
+    transition: background-color 150ms ease-out;
+  }
+  .story-nav button:disabled { opacity: 0.3; cursor: default; }
+  .story-nav button:focus-visible { outline: 2px solid var(--navy, #151b2e); outline-offset: 2px; }
+  @media (hover: hover) and (pointer: fine) { .story-nav button:not(:disabled):hover { background: rgba(21, 27, 46, 0.08); } }
+
+  /* The map's key: what this land is, and what each mark on it means. */
+  .legend { position: fixed; left: 24px; top: 24px; z-index: 6; width: 250px; padding: 12px 14px; border-radius: 4px; background: rgba(250, 246, 236, 0.95); border: 1px solid rgba(74, 70, 80, 0.3); color: #151b2e; }
+  .legend h2 { font: 700 17px/1.2 "Iowan Old Style", "Charter", "Georgia", serif; }
+  .legend p { font: 500 13px/1.35 var(--font); color: rgba(21, 27, 46, 0.75); margin: 4px 0 10px; }
+  .legend ul { list-style: none; padding: 0; display: grid; gap: 6px; font: 500 14px/1.2 var(--font); }
+  .legend li { display: grid; grid-template-columns: 26px 1fr; align-items: center; gap: 8px; }
+  .legend .key { font: 700 16px/1 var(--mono); text-align: center; color: #4a4650; }
+  .legend .key.red { color: var(--brand); }
+  .legend .key.tick { justify-self: center; width: 1.5px; height: 11px; border-radius: 1px; background: rgba(74, 70, 80, 0.8); rotate: 6deg; }
+  .legend .key.who { color: #2e74be; }
+  .legend .key.line { border-top: 3px dashed #2e74be; height: 0; margin-top: 2px; }
+  /* The server's standing, stamped on its card: bare before, inked in once analytics is on. */
+  .legend .stamp {
+    position: absolute; top: -14px; right: -22px; margin: 0; padding: 5px 7px; border: 1.5px dashed rgba(74, 70, 80, 0.45); border-radius: 4px; background: #fbf7ec;
+    font: 600 10px/1 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; color: rgba(74, 70, 80, 0.7); rotate: 4deg;
+  }
+  .legend .stamp.on { border: 2px solid var(--brand); color: var(--brand); rotate: -5deg; text-align: center; line-height: 1.25; animation: stamp-down 260ms cubic-bezier(0.32, 0.72, 0, 1); }
+  .legend .stamp.on span { display: block; }
+  @keyframes stamp-down { from { opacity: 0; scale: 1.5; } }
+  html body[data-static] :is(.composer, .clear, .prompts-toggle, .prompts) { display: none; }
+  .legend[data-compact] { width: auto; display: flex; align-items: center; gap: 10px; padding: 8px 12px; }
+  .legend[data-compact] :is(p:not(.stamp), ul, .examples-toggle) { display: none; }
+  .legend[data-compact] .stamp { position: static; rotate: none; }
+  .legend [data-view] { display: none; }
+  .legend[data-on="false"] [data-view="before"], .legend[data-on="true"] [data-view="after"] { display: grid; }
+  .legend[data-on="false"] .stamp[data-view="before"], .legend[data-on="true"] .stamp[data-view="after"] { display: block; }
+  body:has(.story[data-kind="card"]) .legend { display: none; }
+  .examples-toggle {
+    display: flex; align-items: center; gap: 8px; width: 100%; min-height: 44px; margin-top: 8px; padding: 0; border: 0; border-top: 1px solid rgba(74, 70, 80, 0.2);
+    background: none; color: rgba(21, 27, 46, 0.75); font: 500 13px/1 var(--font); cursor: pointer; text-align: left;
+  }
+  .examples-toggle .state { font: 600 12px/1 var(--mono); padding: 4px 7px; border-radius: 5px; background: #151b2e; color: #fff; }
+  .examples-toggle[aria-pressed="false"] .state { background: rgba(21, 27, 46, 0.12); color: #151b2e; }
+  .examples-toggle kbd { margin-left: auto; font: 500 11px/1 var(--mono); padding: 3px 6px; border-radius: 4px; background: rgba(21, 27, 46, 0.08); }
+  .examples-toggle:focus-visible { outline: 2px solid #151b2e; outline-offset: 2px; }
+
+  /* Claude's side of the conversation, on the same paper as the map: what was asked, each tool it
+     reached for, what came back, and what it said. Open, the map shrinks to sit beside it. */
+  .claude {
+    position: fixed; right: 24px; top: 84px; bottom: 76px; width: 400px; z-index: 7; display: grid; grid-template-rows: auto 1fr;
+    background: #fffdf7; border: 1px solid rgba(74, 70, 80, 0.3); border-radius: 6px; box-shadow: 3px 4px 0 rgba(21, 27, 46, 0.1); color: #151b2e;
+  }
+  .claude[hidden] { display: none; }
+  /* The crossing: the server's side fades in while the conversation settles at the edge, and the
+     other way round. Plain animations on the elements themselves, nothing the browser has to stage. */
+  body[data-crossing="server"] :is(#stage, .feed, .legend, .story-caption) { animation: fade-in 420ms ease-out backwards; }
+  body[data-crossing="server"] .claude { animation: dock-in 420ms cubic-bezier(0.32, 0.72, 0, 1) backwards; }
+  body[data-crossing="client"] :is(.claude, .story-caption) { animation: fade-in 320ms ease-out backwards; }
+  @keyframes fade-in { from { opacity: 0; } }
+  @keyframes dock-in { from { opacity: 0; transform: translateX(-90px); } }
+  .composer { display: none; }
+  /* While a level retells the errand, the action being told stands out and what has not happened yet waits. */
+  .claude :is(.use, .say) { transition: opacity 200ms ease-out; }
+  .claude [data-later] { opacity: 0.22; }
+  .claude .use[data-now] { outline: 2px solid var(--brand); outline-offset: 1px; }
+  /* What crosses from the customer's side to the server's for one action. */
+  .spark { position: fixed; left: 0; top: 0; z-index: 20; padding: 6px 11px; border: 2px solid #fffdf7; border-radius: 999px; box-shadow: 0 2px 0 rgba(21, 27, 46, 0.18); color: #fff; font: 600 13px/1 var(--mono); font-style: normal; white-space: nowrap; pointer-events: none; will-change: transform; }
+
+  /* The customer's side, on its own: a conversation the server takes no part in. Nothing of the
+     server is on screen until the talk crosses over. */
+  body[data-client] :is(.feed, .legend, .prompts-toggle, .prompts) { display: none; }
+  body[data-client] #stage { visibility: hidden; }
+  body[data-client] .story-caption { left: max(10vw, 24px); }
+  body[data-client] .claude { inset: 150px max(10vw, 24px) 84px; width: auto; grid-template-rows: auto 1fr auto; }
+  body[data-client] .claude :is(.min, .back-to-list) { display: none; }
+  body[data-client] .claude header { padding: 14px 20px; }
+  body[data-client] .claude h2 { font-size: 26px; }
+  body[data-client] .claude .server { font-size: 15px; }
+  body[data-client] .claude > ol { padding: 18px 20px; }
+  body[data-client] .detail .who { grid-template-columns: 40px minmax(0, 1fr) auto; }
+  body[data-client] .who .num { width: 40px; height: 40px; font-size: 15px; }
+  body[data-client] .who .name { font-size: 16px; }
+  body[data-client] .who .said { font-size: 24px; line-height: 1.3; -webkit-line-clamp: 4; }
+  body[data-client] .who .status { font-size: 14px; }
+  body[data-client] .claude .say { font-size: 20px; }
+  body[data-client] .claude .use { font-size: 16px; padding: 9px 12px; }
+  body[data-client] .claude .use .back { font-size: 16px; }
+  body[data-client] .empty { margin: auto; font: italic 500 22px/1.3 var(--font); color: rgba(21, 27, 46, 0.55); }
+  body[data-client] .composer { display: grid; grid-template-columns: 1fr auto; gap: 10px; padding: 14px 20px 18px; border-top: 1px dashed rgba(74, 70, 80, 0.4); }
+  .composer .asks { grid-column: 1 / -1; display: none; flex-wrap: wrap; gap: 8px; }
+  body[data-asker] .composer .asks { display: flex; }
+  /* The developer's answer is denser than a customer's, so it gets the whole window: what was asked and found on the left, the numbers as a chart on the right. */
+  body[data-asker] .claude { inset: 108px 24px 76px; }
+  body[data-asker] .detail.charted { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); column-gap: 28px; }
+  body[data-asker] .detail.charted .who { grid-column: 1 / -1; }
+  body[data-asker] .detail.charted .chart { align-self: start; }
+  body[data-asker] .claude .say { font-size: 21px; }
+  .composer .asks button { height: 40px; padding: 0 14px; border: 1.5px solid rgba(21, 27, 46, 0.35); border-radius: 999px; background: #fffdf7; color: #151b2e; font: 500 15px/1 var(--font); }
+  .composer label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .composer input { min-width: 0; height: 52px; padding: 0 16px; border-radius: 10px; border: 1.5px solid rgba(21, 27, 46, 0.35); background: #fff; color: #151b2e; font: 500 19px/1 var(--font); }
+  .composer input:focus-visible { outline: 2px solid #151b2e; outline-offset: 2px; }
+  .composer button { height: 52px; padding: 0 22px; border: 0; border-radius: 10px; background: #151b2e; color: #fff; font: 600 17px/1 var(--font); cursor: pointer; transition: scale 150ms ease-out; }
+  .composer button:active { scale: 0.97; }
+  .composer button:focus-visible { outline: 2px solid #151b2e; outline-offset: 2px; }
+  .composer :disabled { opacity: 0.45; cursor: default; }
+
+  /* Docked beside the server, the conversation is the whole right-hand side of the screen, from top to
+     bottom, behind a heavy dashed line: the edge of what the server can see. */
+  body.beside-claude .claude { inset: 0 0 0 auto; width: 440px; padding: 12px 0 72px 6px; border: 0; border-radius: 0; box-shadow: none; }
+  /* Docked, the agent's answer is cut short: it was read in full on the customer's own stop. */
+  body.beside-claude .claude .say { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 4; overflow: hidden; }
+  body.beside-claude .claude::after {
+    content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 6px;
+    background: repeating-linear-gradient(to bottom, var(--brand) 0 18px, transparent 18px 28px);
+  }
+  body.beside-claude .claude::before {
+    content: "Your server cannot see past this line"; position: absolute; z-index: 1; left: 3px; top: 50%; translate: -50% -50%; rotate: 180deg; writing-mode: vertical-rl;
+    padding: 14px 6px; border-radius: 6px; background: var(--brand); color: #fffdf7; font: 600 12px/1 var(--mono); letter-spacing: 0.1em; text-transform: uppercase; white-space: nowrap;
+  }
+  body:has(.story[data-kind="card"]) .claude { display: none; }
+  .claude header { display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: 4px; padding: 6px 6px 6px 14px; border-bottom: 1px dashed rgba(74, 70, 80, 0.4); }
+  .claude h2 { font: 700 18px/1.2 "Iowan Old Style", "Charter", "Georgia", serif; }
+  .claude .server { font: 500 12px/1.3 var(--font); color: rgba(21, 27, 46, 0.65); }
+  .claude :is(.min, .clear, .shut, .back-to-list) { border: 0; border-radius: 8px; background: none; color: rgba(21, 27, 46, 0.7); cursor: pointer; transition: color 150ms ease-out, background-color 150ms ease-out; }
+  .claude :is(.min, .clear, .shut, .back-to-list, .pick):focus-visible { outline: 2px solid #151b2e; outline-offset: -2px; }
+  .claude :is(.min, .clear, .shut, .back-to-list):active { scale: 0.96; }
+  @media (hover: hover) and (pointer: fine) {
+    .claude :is(.min, .clear, .shut, .back-to-list):hover { color: #151b2e; background: rgba(21, 27, 46, 0.07); }
+    .customer .pick:hover { background: rgba(21, 27, 46, 0.035); }
+  }
+  .claude .min { width: 44px; height: 44px; font: 500 20px/1 var(--mono); }
+  .claude .clear { height: 40px; padding: 0 10px; font: 600 13px/1 var(--font); }
+  .claude[data-min] .clear { display: none; }
+  .claude ol { list-style: none; margin: 0; padding: 0; }
+  .claude > ol { display: flex; flex-direction: column; gap: 8px; min-height: 0; padding: 10px; overflow-y: auto; }
+
+  .customer { display: grid; grid-template-columns: minmax(0, 1fr) 40px; align-items: start; border: 1px solid rgba(74, 70, 80, 0.28); border-radius: 8px; background: #fffefb; }
+  .customer .pick { display: grid; gap: 8px; padding: 10px 4px 10px 10px; border: 0; border-radius: 8px 0 0 8px; background: none; color: inherit; text-align: left; cursor: pointer; }
+  .customer .shut { width: 40px; height: 44px; display: grid; place-items: center; font: 400 20px/1 var(--font); color: rgba(21, 27, 46, 0.5); }
+  .who { display: grid; grid-template-columns: 26px minmax(0, 1fr) auto; align-items: center; gap: 10px; }
+  .who .num {
+    width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; background: var(--session, #4a4650); color: #fff;
+    font: 700 11px/1 var(--font); letter-spacing: 0.02em;
+  }
+  .who .num.you { background: #151b2e; font-size: 10px; }
+  .who .said { margin: 0; font: italic 500 14px/1.3 var(--font); text-wrap: pretty; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+  .who .status { font: 600 11px/1 var(--mono); padding: 5px 7px; border-radius: 5px; background: #d3f1e1; color: #14603f; }
+  .who .status[data-status="running"] { background: #151b2e; color: #fff; }
+  .who .status[data-status="running"]::before { content: ""; display: inline-block; width: 6px; height: 6px; margin-right: 6px; border-radius: 50%; background: var(--brand); animation: cue-pulse 1.2s ease-in-out infinite; }
+  .who .status[data-status="failed"] { background: #ffe1d6; color: #b23a12; }
+  .customer .calls { display: flex; flex-wrap: wrap; gap: 5px; padding-left: 36px; min-height: 22px; }
+  .customer .call { padding: 4px 7px; border-radius: 5px; background: rgba(21, 27, 46, 0.06); font: 500 12px/1 var(--mono); white-space: nowrap; }
+  .customer .call[data-state="error"] { background: #ffe1d6; color: #b23a12; font-weight: 600; }
+  .customer .call[data-state="calling"] { animation: cue-pulse 1.2s ease-in-out infinite; }
+
+  .detail { flex: 1 1 0; min-height: 0; display: grid; grid-template-rows: auto auto minmax(0, 1fr); gap: 10px; }
+  .detail .back-to-list { justify-self: start; height: 40px; padding: 0 10px; margin-left: -6px; font: 600 13px/1 var(--font); }
+  .detail .who { padding: 0 2px; }
+  .detail .who .said { -webkit-line-clamp: 4; }
+  .claude .talk { min-height: 0; padding: 2px; overflow-y: auto; display: grid; gap: 6px; align-content: start; }
+  .claude .talk::-webkit-scrollbar { width: 8px; }
+  .claude .talk::-webkit-scrollbar-thumb { background: rgba(0, 0, 0, 0.2); border-radius: 4px; }
+  .claude .say { font: 500 14px/1.45 var(--font); white-space: pre-wrap; overflow-wrap: anywhere; padding: 2px 2px 4px; }
+  .claude .say :is(p, ul) { margin: 0 0 0.55em; }
+  .claude .say ul { padding-left: 1.1em; display: grid; gap: 0.25em; }
+  .claude .say .next { margin-top: 0.7em; padding: 8px 12px; border-left: 4px solid var(--brand); border-radius: 0 6px 6px 0; background: rgba(245, 78, 0, 0.07); font-weight: 600; }
+  .chart { margin: 0; padding: 14px 16px 16px; border: 2px solid #151b2e; border-radius: 12px; box-shadow: 4px 4px 0 #151b2e; background: #fffdf7; }
+  .chart figcaption { margin-bottom: 12px; font: 700 clamp(15px, 1.4vw, 21px)/1.25 "Iowan Old Style", "Charter", "Georgia", serif; text-wrap: balance; }
+  .chart ol { list-style: none; padding: 0; display: grid; gap: 10px; }
+  .chart li { display: grid; grid-template-columns: minmax(0, 11em) minmax(0, 1fr) auto; align-items: center; gap: 10px; font: 500 clamp(13px, 1.1vw, 17px)/1.2 var(--font); }
+  .chart .label { text-wrap: balance; }
+  .chart .track { display: block; height: 22px; }
+  .chart .track i { display: block; height: 100%; border-radius: 0 4px 4px 0; background: var(--brand); }
+  .chart .value { min-width: 2ch; text-align: right; font: 700 clamp(14px, 1.2vw, 19px)/1 var(--mono); font-variant-numeric: tabular-nums; }
+  .claude .use { display: grid; grid-template-columns: 16px auto minmax(0, 1fr); align-items: baseline; gap: 2px 8px; padding: 6px 9px; border-radius: 6px; background: rgba(21, 27, 46, 0.05); font: 500 12.5px/1.4 var(--mono); }
+  .claude .use .mark { font-weight: 700; text-align: center; color: #1f7a53; }
+  .claude .use .name { font-weight: 600; }
+  .claude .use .args { color: rgba(21, 27, 46, 0.6); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .claude .use .back { grid-column: 2 / -1; font: 500 13px/1.35 var(--font); color: #b23a12; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; }
+  .claude .use[data-state="error"] { background: #ffe9e1; }
+  .claude .use[data-state="error"] .mark { color: #b23a12; }
+  .claude .use[data-state="calling"] .mark { color: #4a4650; animation: cue-pulse 1.2s ease-in-out infinite; }
+  .claude[data-min] { bottom: auto; width: auto; grid-template-rows: auto; }
+  .claude[data-min] > ol { display: none; }
+  .claude[data-min] header { border-bottom: 0; }
+  body.beside-claude .feed { width: calc(100vw - 494px); }
+  body.beside-claude .story-caption { right: 470px; }
+
+  /* Bottom dock: the terminal the room already tails, and the sessions view analytics adds beside it. */
+  .feed { position: fixed; left: 24px; bottom: 24px; z-index: 6; display: flex; align-items: flex-end; gap: 12px; width: calc(100vw - 330px); }
+  body:has(.story[data-kind="card"]) .feed { display: none; }
+
+  .terminal { flex: 0 1 560px; min-width: 500px; border-radius: 10px; overflow: hidden; background: #0d0f14; border: 1px solid #2c303a; color: #c9ccd3; font: 400 13px/1.55 var(--mono); }
+  .terminal header { display: flex; align-items: center; gap: 6px; padding: 7px 10px; background: #1a1d25; color: #8b909c; font-size: 12px; }
+  .terminal header i { width: 10px; height: 10px; border-radius: 50%; background: #3a3f4b; }
+  .terminal header span { margin-left: 8px; white-space: nowrap; }
+  .terminal ol { list-style: none; padding: 8px 12px 10px; height: calc(6 * 1.55em + 18px); display: flex; flex-direction: column; justify-content: flex-end; }
+  /* Columns, so the eye can run down the tools and the results without reading each line. */
+  .terminal li { display: grid; grid-template-columns: 8ch 16ch minmax(0, 1fr) 7ch; gap: 2ch; white-space: nowrap; padding: 0 4px; margin: 0 -4px; border-radius: 3px; }
+  .terminal .time { color: #6b7080; font-variant-numeric: tabular-nums; }
+  .terminal .tool { color: #f2f3f5; font-weight: 600; }
+  .terminal .caller { margin-right: 1ch; color: #8fb8e8; }
+  .terminal .args { overflow: hidden; text-overflow: ellipsis; color: #9aa0ad; }
+  .terminal .result { color: #6fbf8f; text-align: right; }
+  .terminal .failed { background: rgba(255, 123, 92, 0.1); }
+  .terminal .failed .result { color: #ff7b5c; }
+  /* With analytics on, the answers are the thing to read. The log is still there, just no longer the main event. */
+  .terminal ol { transition: opacity 600ms ease-out; }
+  .terminal[data-aside] ol { opacity: 0.5; }
+  /* What agents asked for is answered on the board, so the map does not say it a second time. */
+  .notes .list { display: none; }
+
+  /* The session, in the place the log had: the same strip, now about one customer's visit. */
+  .terminal[hidden], .visit[hidden] { display: none; }
+  .visit { flex: 0 1 560px; min-width: 500px; display: grid; gap: 8px; align-content: start; padding: 10px 12px 12px; border-radius: 10px; border: 1px solid rgba(21, 27, 46, 0.18); border-left: 5px solid var(--session, transparent); background: #fffdf7; color: #151b2e; }
+  .visit header { display: flex; align-items: baseline; gap: 10px; font: 600 12px/1 var(--font); letter-spacing: 0.08em; text-transform: uppercase; color: rgba(21, 27, 46, 0.6); }
+  .visit .visitor { min-width: 0; font: 600 15px/1.2 var(--font); letter-spacing: 0; text-transform: none; color: #151b2e; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .visit .tally { flex: none; }
+  .visit .tally { margin-left: auto; font: 500 12px/1 var(--mono); letter-spacing: 0; text-transform: none; font-variant-numeric: tabular-nums; }
+  .visit ol { list-style: none; padding: 0; display: grid; gap: 2px; min-height: calc(7 * 23px); align-content: start; }
+  .visit li { display: grid; grid-template-columns: 2ch 15ch minmax(0, 1fr) 6ch 2ch; align-items: baseline; gap: 1.2ch; padding: 1px 5px; border-radius: 3px; font: 500 13px/1.6 var(--mono); }
+  .visit .n { text-align: right; color: rgba(21, 27, 46, 0.45); font-variant-numeric: tabular-nums; }
+  .visit .tool { font-weight: 600; }
+  .visit .sent { color: rgba(21, 27, 46, 0.65); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .visit .failed .sent { font: 500 13.5px/1.5 var(--font); color: #b23a12; }
+  .visit .asked .sent { font: italic 500 14px/1.45 var(--font); color: rgba(21, 27, 46, 0.9); }
+  .visit .ms { text-align: right; color: rgba(21, 27, 46, 0.5); font-variant-numeric: tabular-nums; }
+  .visit .mark { font-weight: 700; color: #1f7a53; text-align: center; }
+  .visit .failed { background: #ffe9e1; }
+  .visit .failed .mark { color: #b23a12; }
+  .visit li.new { animation: line-up 240ms cubic-bezier(0.32, 0.72, 0, 1); }
+
+  .board { flex: 1 1 660px; min-width: 0; display: grid; gap: 8px; border-radius: 10px; background: #fffdf7; border: 1px solid rgba(21, 27, 46, 0.18); color: #151b2e; padding: 10px 12px 12px; }
+  .board header { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; font: 600 12px/1 var(--font); letter-spacing: 0.08em; text-transform: uppercase; color: rgba(21, 27, 46, 0.6); }
+  .board .mode { color: rgba(21, 27, 46, 0.6); }
+  .board[data-on="true"] .mode { color: var(--brand); }
+  .board .q { display: grid; gap: 3px; }
+  /* A question with no answer takes one line, so the board grows as the levels answer more. */
+  .board .q:has(.unknown) { grid-template-columns: minmax(0, 17em) minmax(0, 1fr); align-items: baseline; gap: 10px; }
+  .board .ask { font: 600 13px/1.2 var(--font); color: rgba(21, 27, 46, 0.7); }
+  .board .a { border-radius: 4px; display: grid; gap: 5px; font: 500 15px/1.3 var(--font); min-height: 1.3em; }
+  .board .unknown { justify-self: start; padding: 1px 7px; border: 1.5px dashed rgba(74, 70, 80, 0.5); border-radius: 4px; color: rgba(74, 70, 80, 0.85); font-weight: 600; }
+  .board .detail { color: rgba(21, 27, 46, 0.6); font-size: 13px; }
+  .board .a:has(.unknown) { grid-template-columns: auto 1fr; align-items: baseline; gap: 8px; }
+  .board .known { font-weight: 600; }
+  .board .q[data-wait] { visibility: hidden; }
+  /* Level 1 has no traces, so the map shows the server and nothing about its calls. */
+  body[data-level="1"] #stage .before { visibility: hidden; }
+  body[data-level="1"] .legend li.traced { display: none; }
+  .board .user { font-style: normal; font-weight: 600; margin-right: 0.5em; }
+  .who .name { font: 600 13px/1.2 var(--font); }
+  .board .wanted { font-weight: 500; font-style: italic; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .board .agent { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: start; padding-left: 8px; border-left: 4px solid var(--session); }
+  .board .goal { font-style: italic; text-wrap: pretty; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+  .board .more { color: rgba(21, 27, 46, 0.6); font-size: 13px; }
+  .board .end { font: 600 12px/1 var(--mono); padding: 4px 6px; border-radius: 5px; background: rgba(21, 27, 46, 0.07); white-space: nowrap; }
+  .board .end.good { background: #d3f1e1; color: #14603f; }
+  .board .end.bad { background: #ffe1d6; color: #b23a12; }
+  .board .end.lack { background: #fdebb4; }
+  .terminal li.new { animation: line-in 700ms ease-out, line-up 240ms cubic-bezier(0.32, 0.72, 0, 1); }
+  @keyframes line-up { from { opacity: 0; transform: translateY(8px); } }
+  .board .enter { animation: row-in 280ms cubic-bezier(0.32, 0.72, 0, 1) backwards; }
+  /* The one line is the hinge of the talk, so it is written out once as the stop opens. */
+  .story .code code:first-child { animation: type-in 1000ms steps(34, end) 200ms backwards; }
+  .story .code code.alt { animation: row-in 280ms cubic-bezier(0.32, 0.72, 0, 1) 1200ms backwards; }
+  @keyframes type-in { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
+  @keyframes line-in { from { background: rgba(255, 255, 255, 0.16); } }
+
+  .story-nav .cue { margin-right: 10px; padding: 7px 10px; border-radius: 999px; background: rgba(21, 27, 46, 0.08); color: #151b2e; }
+  .story-nav .cue:empty { display: none; }
+  .story-nav .cue[data-busy] { background: #151b2e; color: #fff; }
+  .story-nav .cue[data-busy]::before { content: ""; display: inline-block; width: 7px; height: 7px; margin-right: 7px; border-radius: 50%; background: var(--brand); animation: cue-pulse 1.2s ease-in-out infinite; }
+  @keyframes cue-pulse { 50% { opacity: 0.25; } }
+
+  /* The talk drives itself from the customer's message box and the developer's stop, so the bar has no button. P still opens it. */
+  .chip.prompts-toggle { display: none; }
+  .prompts {
+    position: fixed; top: 80px; right: 24px; z-index: 10; width: min(460px, calc(100vw - 48px));
+    max-height: calc(100vh - 164px); overflow-y: auto; padding: 14px; border-radius: 12px;
+    border: 1px solid #2c303a; background: rgba(14, 16, 22, 0.9);
+    -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); color: #f4f1ea;
+    display: grid; gap: 14px;
+  }
+  .prompts[hidden] { display: none; }
+  .prompts:not([data-ask]) section.developer, .prompts[data-ask] section:not(.developer) { display: none; }
+  .prompts h3 { display: flex; justify-content: space-between; align-items: center; }
+  .prompts .both { height: 28px; padding: 0 10px; border-radius: 6px; border: 1px solid #3a3f4b; background: none; color: #f4f1ea; font: 600 12px/1 var(--font); letter-spacing: 0; text-transform: none; cursor: pointer; }
+  .prompts .both:focus-visible { outline: 2px solid rgba(255, 255, 255, 0.5); outline-offset: 2px; }
+  .prompts h3 { font: 600 12px/1 var(--font); letter-spacing: 0.09em; text-transform: uppercase; color: rgba(244, 241, 234, 0.6); margin-bottom: 6px; }
+  .prompts section { display: grid; gap: 6px; }
+  .prompt {
+    display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: start; text-align: left;
+    padding: 10px 12px; border-radius: 8px; border: 1px solid #2c303a; background: rgba(255, 255, 255, 0.04);
+    color: inherit; font: 500 15px/1.35 var(--font); cursor: pointer;
+    transition: background-color 150ms ease-out, scale 150ms ease-out;
+  }
+  .prompt:active { scale: 0.98; }
+  .prompt:focus-visible { outline: 2px solid rgba(255, 255, 255, 0.5); outline-offset: 2px; }
+  .prompt .state { font: 500 12px/1.6 var(--mono); color: rgba(244, 241, 234, 0.55); min-width: 6ch; text-align: right; }
+  .prompts-target { font: 600 12px/1 var(--font); letter-spacing: 0.09em; text-transform: uppercase; color: var(--brand); }
+  .prompts-form { display: grid; grid-template-columns: 1fr auto; gap: 6px 8px; }
+  .prompts-form label { grid-column: 1 / -1; font: 600 12px/1 var(--font); letter-spacing: 0.09em; text-transform: uppercase; color: rgba(244, 241, 234, 0.6); }
+  .prompts-form input {
+    min-width: 0; height: 44px; padding: 0 12px; border-radius: 8px; border: 1px solid #3a3f4b; background: rgba(255, 255, 255, 0.06);
+    color: inherit; font: 500 16px/1 var(--font);
+  }
+  .prompts-form input:focus-visible { outline: 2px solid rgba(255, 255, 255, 0.5); outline-offset: 2px; }
+  .prompts-form button {
+    height: 44px; padding: 0 16px; border-radius: 8px; border: 0; background: var(--brand); color: #fff; font: 600 15px/1 var(--font); cursor: pointer;
+    transition: scale 150ms ease-out;
+  }
+  .prompts-form button:active { scale: 0.97; }
+  .prompts-form button:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+  .prompts-error { font: 500 14px/1.35 var(--font); color: #ff9d7a; }
+  @media (hover: hover) and (pointer: fine) { .prompt:hover { background: rgba(255, 255, 255, 0.09); } }
+
+  @media (prefers-reduced-motion: reduce) {
+    .prompt, .prompts-form button, .story-nav button, .claude button { transition: none; }
+    .legend .stamp.on, .story-nav .cue[data-busy]::before, .terminal li.new, .visit li.new, .claude .use[data-state="calling"] .mark, .customer .call[data-state="calling"], .who .status[data-status="running"]::before { animation: none; }
+    .base, .tag, .chip, .terminal ol { transition: none; }
+    .list li.enter, .board .enter, .story .code code, .story .stats li { animation: none; }
+    body[data-crossing] :is(#stage, .feed, .legend, .story-caption, .claude) { animation: none; }
+  }
+</style>
+</head>
+<body data-static>
+<!-- Dark mode's range: after the page is turned over, black lands on PostHog's ink (#23251d) and white on its paper (#fdfdf8). The second filter takes that back off, for pictures. -->
+<svg width="0" height="0" style="position: absolute" aria-hidden="true">
+  <filter id="dark-range" color-interpolation-filters="sRGB">
+    <feComponentTransfer>
+      <feFuncR type="linear" slope="0.8549" intercept="0.1373" />
+      <feFuncG type="linear" slope="0.8471" intercept="0.1451" />
+      <feFuncB type="linear" slope="0.8588" intercept="0.1137" />
+    </feComponentTransfer>
+  </filter>
+  <filter id="dark-range-undo" color-interpolation-filters="sRGB">
+    <feComponentTransfer>
+      <feFuncR type="linear" slope="1.1697" intercept="-0.1606" />
+      <feFuncG type="linear" slope="1.1805" intercept="-0.1713" />
+      <feFuncB type="linear" slope="1.1644" intercept="-0.1324" />
+    </feComponentTransfer>
+  </filter>
+</svg>
+<main id="stage"></main>
+
+
+<aside class="legend" data-on="false" aria-label="Map key">
+  <h2>posthog-merch</h2>
+  <p class="stamp" data-view="before">No analytics</p>
+  <p class="stamp on" data-view="after">MCP Analytics <span>installed</span></p>
+  <p>The lay of the land: an MCP server, with one place for each of its 7 tools.</p>
+  <ul>
+    <li data-view="before"><span class="key">⊙</span><span>A tool</span></li>
+    <li data-view="before" class="traced"><span class="key tick"></span><span>A call to it</span></li>
+    <li data-view="before" class="traced"><span class="key red">✕</span><span>A call that failed</span></li>
+    <li data-view="after"><span class="key">⌂</span><span>A tool</span></li>
+    <li data-view="after"><span class="key who">●</span><span>A customer’s agent</span></li>
+    <li data-view="after"><span class="key line"></span><span>Its journey</span></li>
+    <li data-view="after"><span class="key">✓</span><span>A call that worked</span></li>
+    <li data-view="after"><span class="key red">✕</span><span>A call that failed</span></li>
+  </ul>
+  <button class="examples-toggle" type="button" aria-pressed="true">
+    <span>Example calls</span><span class="state">on</span><kbd aria-hidden="true">E</kbd>
+  </button>
+</aside>
+<aside class="claude" aria-label="Customer conversations" hidden>
+  <header>
+    <div><h2>Customers</h2><p class="server"></p></div>
+    <button class="clear" type="button">Start over</button>
+    <button class="min" type="button" aria-label="Minimise customers" aria-expanded="true">–</button>
+  </header>
+  <ol aria-live="polite"></ol>
+  <form class="composer">
+    <div class="asks"></div>
+    <label for="composer-input">Message the agent</label>
+    <input id="composer-input" autocomplete="off" />
+    <button type="submit">Send</button>
+  </form>
+</aside>
+<aside class="feed" aria-label="Server log"></aside>
+<section class="story" aria-live="polite"></section>
+
+<button class="chip prompts-toggle" type="button" aria-expanded="false" aria-controls="prompts">
+  <span>Prompts</span>
+  <kbd aria-hidden="true">P</kbd>
+</button>
+<aside class="prompts" id="prompts" aria-label="Demo prompts" hidden></aside>
+
+<script src="lib.js"></script>
+<script src="sound.js"></script>
+<script src="stream.js"></script>
+<script src="story.js"></script>
+<script src="feed.js"></script>
+<script src="sketch.js"></script>
+<script>
+  const stage = document.getElementById('stage')
+  const params = new URLSearchParams(location.search)
+  const scripted = params.has('script')
+  let examples = params.get('examples') !== 'off'
+  // One colour per session, shared by its walker on the map and its card in the sessions panel.
+  const SESSION_COLORS = [[232, 84, 54], [46, 116, 190], [122, 92, 190], [30, 128, 112]]
+  const sessionColors = new Map()
+  const colorOf = (session) => {
+    if (!sessionColors.has(session)) sessionColors.set(session, SESSION_COLORS[sessionColors.size % SESSION_COLORS.length])
+    return sessionColors.get(session)
+  }
+  const prices = new Map()
+  const sound = createSound()
+  // The only calls the room hears are the ones that failed, and only once traces can show them.
+  const heard = (event) => event.error && sound.fail()
+  const feed = createFeed(document.querySelector('.feed'), colorOf, (id) => prices.get(id))
+  const played = {}
+  let example
+  let onMap = false
+  let scene
+  let installed = false
+
+  function setInstalled(value) {
+    installed = value
+    document.querySelector('.legend').dataset.on = String(value)
+    scene.setInstalled(value)
+    if (value) sound.stamp()
+    showRuns()
+  }
+
+  // The three levels of sight: 1 is a server with no observability, 2 adds traces and logs, 3 adds
+  // MCP Analytics. Only level 3 has the analytics view of the map.
+  let level = 1
+  const STANDING = { 1: 'No observability', 2: 'Traces and logs' }
+  function setLevel(value, arriving) {
+    level = value
+    document.body.dataset.level = value
+    if (value < 3) document.querySelector('.legend .stamp[data-view="before"]').textContent = STANDING[value]
+    feed.setLevel(value)
+    if ((value === 3) !== installed) setInstalled(value === 3)
+    // Arriving at a level tells its story. A further press on the same stop does not start it over.
+    if (arriving) retell(value)
+  }
+
+  // Every call each server has received, in order, so a level can tell the errand again from the start.
+  const seen = { raw: [], instrumented: [] }
+  const told = new Set()
+  let telling
+  // The action in the customer's conversation that the server's side is showing right now.
+  let cursor
+
+  // Each time a level opens, the errand is told again one action at a time: the action lights up
+  // in the customer's conversation, something crosses the line, and the server's side shows what this
+  // level recorded of it. That pairing, action by action, is the point of the talk.
+  // Settles a telling that was cut short, so what it had not yet shown is still on record.
+  let abandon
+  function retell(value) {
+    abandon?.()
+    clearTimeout(telling)
+    cursor = undefined
+    const channel = value === 3 ? 'instrumented' : 'raw'
+    const events = seen[channel].slice()
+    if (!events.length) return
+    // Coming back to a level starts from a clean map, so the marks of the last telling are not doubled.
+    if (told.size) {
+      mount()
+      fit()
+    }
+    told.add(value)
+    if (value >= 2) unseen.length = 0
+    if (value === 3) held.length = 0
+    feed.rewind(channel)
+    const order = new Map()
+    let i = 0
+    // Leaving before the story is over, even before its first action, records the rest plainly.
+    abandon = () => {
+      abandon = undefined
+      for (const event of events.slice(i)) feed.add(event)
+    }
+    const finish = () => {
+      abandon = undefined
+      cursor = undefined
+      shownRuns = ''
+      showRuns()
+    }
+    const next = () => {
+      if (level !== value || clientSide) {
+        abandon()
+        return finish()
+      }
+      const event = events[i++]
+      if (!event) return finish()
+      const index = order.get(event.run) ?? 0
+      order.set(event.run, index + 1)
+      cursor = { run: String(event.run), index }
+      shownRuns = ''
+      showRuns()
+      // One action, three beats: it leaves the conversation, it reaches the tool, it becomes a record.
+      // The server's side only changes when the marker gets there, so cause is always seen before effect.
+      cross(
+        event,
+        value,
+        () => {
+          if (level !== value) return
+          if (value === 2) {
+            scene.onEvent(event)
+            heard(event)
+          }
+          if (value === 3) draw(event)
+        },
+        () => feed.add(event)
+      )
+      telling = setTimeout(next, PACE[value])
+    }
+    // The analytics map takes a few seconds to colour in the first time, and journeys wait for it.
+    telling = setTimeout(next, value === 3 ? 4200 : 500)
+  }
+  // Slow enough to read each action as it happens. Level 3 is slowest: its figure has to walk there.
+  const PACE = { 1: 1200, 2: 1600, 3: 1800 }
+
+  // What crosses the line for one action, written on the thing that crosses. At level 1 that is only a
+  // status code. From level 2 it is the tool and its result. The reason, at level 3, is shown in one
+  // place only: beside the customer's figure on the map.
+  function crossing(event, value) {
+    if (value === 1) return ['200', '#6b7080']
+    return [`${event.tool} ${event.error ? '✕' : '✓'}`, event.error ? '#f54e00' : '#151b2e']
+  }
+
+  // The marker travels from the action in the customer's conversation, across the line, to that tool's
+  // place on the map, and then down to the log. `reached` runs when it gets to the tool and `recorded`
+  // when it gets to the log. At level 1 the server does not know which tool it was, so the marker goes
+  // straight to the log.
+  function cross(event, value, reached, recorded) {
+    const from = claude.querySelector('.use[data-now]')?.getBoundingClientRect()
+    const log = [...document.querySelectorAll('.feed .record')].find((list) => list.offsetParent)?.getBoundingClientRect()
+    if (!from?.width || !log?.width || matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      reached()
+      return recorded()
+    }
+    const label =
+      value > 1
+        ? [...stage.querySelectorAll('.name')].find(
+            (name) => name.textContent.trim().startsWith(event.tool) && getComputedStyle(name).visibility !== 'hidden'
+          )
+        : undefined
+    const place = label?.getBoundingClientRect()
+    const [text, color] = crossing(event, value)
+    const chip = document.createElement('i')
+    chip.className = 'spark'
+    chip.textContent = text
+    chip.style.background = color
+    document.body.append(chip)
+
+    const at = (x, y, scale = 1) => `translate(${x}px, ${y}px) translate(-50%, -50%) scale(${scale})`
+    const glide = 'cubic-bezier(0.45, 0, 0.2, 1)'
+    const start = [from.left + 60, from.top + from.height / 2]
+    const end = [log.left + 150, log.bottom - 20]
+    const tool = place?.width ? [place.left + place.width / 2, place.top - 16] : undefined
+    const frames = tool
+      ? [
+          { transform: at(...start, 0.9), opacity: 0, easing: 'ease-out' },
+          { transform: at(...start), opacity: 1, offset: 0.08, easing: glide },
+          { transform: at(...tool), opacity: 1, offset: 0.48, easing: 'linear' },
+          { transform: at(...tool), opacity: 1, offset: 0.64, easing: glide },
+          { transform: at(...end), opacity: 1, offset: 0.94, easing: 'ease-in' },
+          { transform: at(...end, 0.96), opacity: 0 },
+        ]
+      : [
+          { transform: at(...start, 0.9), opacity: 0, easing: 'ease-out' },
+          { transform: at(...start), opacity: 1, offset: 0.12, easing: glide },
+          { transform: at(...end), opacity: 1, offset: 0.9, easing: 'ease-in' },
+          { transform: at(...end, 0.96), opacity: 0 },
+        ]
+    const duration = tool ? 1150 : 700
+    chip.animate(frames, { duration }).finished.finally(() => chip.remove())
+    setTimeout(() => {
+      reached()
+      // The tool answers the arrival with a small beat on its name.
+      label?.animate([{ scale: 1 }, { scale: 1.2, offset: 0.35 }, { scale: 1 }], { duration: 380, easing: 'ease-out' })
+    }, tool ? duration * 0.48 : 0)
+    setTimeout(recorded, duration * 0.92)
+  }
+
+  const held = []
+  let clientSide = false
+  // True while a saved session is being read back in, so nothing is drawn or sounded for it yet.
+  let restoring = false
+  let restored = false
+  let asker = false
+  let crossed
+  let started = false
+  const unseen = []
+  let drawnAt
+  let touched = false
+
+  function mount() {
+    // A map with no room to draw in must never be drawn: at zero size its strokes never finish.
+    if (scene && !(stage.clientWidth && stage.clientHeight)) return
+    scene?.destroy()
+    stage.replaceChildren()
+    stage.removeAttribute('data-installed')
+    stage.removeAttribute('style')
+    stage.className = sketchbook.cls
+    scene = sketchbook.mount(stage)
+    drawnAt = { w: stage.clientWidth, h: stage.clientHeight }
+    if (installed) setInstalled(true)
+  }
+
+  // Once calls have been drawn, a resize (going fullscreen mid-talk) must not rebuild the map and
+  // lose them. The map keeps the size it was drawn at and is scaled to fit instead.
+  const DOCK = 170
+  function fit() {
+    const beside = document.body.classList.contains('beside-claude') ? 446 : 0
+    if (!touched && !beside) {
+      // Nothing drawn yet, so a new size gets a fresh map. Stepping between stops is not a new size.
+      const same = !stage.hasAttribute('style') && innerWidth === drawnAt.w && innerHeight - DOCK === drawnAt.h
+      return same ? undefined : mount()
+    }
+    const room = innerWidth - beside
+    const tall = innerHeight - DOCK
+    const scale = Math.min(room / drawnAt.w, tall / drawnAt.h)
+    const x = (room - drawnAt.w * scale) / 2
+    const y = (tall - drawnAt.h * scale) / 2
+    Object.assign(stage.style, {
+      inset: 'auto', left: '0', top: '0', width: drawnAt.w + 'px', height: drawnAt.h + 'px',
+      transformOrigin: '0 0', transform: `translate(${x}px, ${y}px) scale(${scale})`,
+    })
+  }
+
+  // Every call, live or example, goes to the map and the log together.
+  function show(event) {
+    // The two servers are two servers. A call to the plain one is all levels 1 and 2 ever see, and a
+    // call to the instrumented one belongs to level 3 alone.
+    if (event.channel !== 'instrumented') return showPlain(event)
+    seen.instrumented.push(event)
+    feed.add(event)
+    if (restoring) return
+    // The built-in example is a single script standing in for both runs, so its calls are also shown
+    // as the plain server would have recorded them. get_more_tools does not exist on that server.
+    if (event.example && event.tool !== 'get_more_tools') {
+      const token = event.user && `${event.user.toLowerCase().replace(' ', '.')}@example.com`
+      showPlain({ tool: event.tool, args: event.args, error: event.error, at: event.at, durationMs: event.durationMs, channel: 'raw', token, run: event.run })
+    }
+    if (installed) draw(event)
+    else held.push(event)
+  }
+
+  function showPlain(event) {
+    seen.raw.push(event)
+    feed.add(event)
+    if (restoring) return
+    lastCall = performance.now()
+    touched = true
+    if (level === 2) heard(event)
+    if (level === 1) unseen.push(event)
+    else scene.onEvent(event)
+  }
+
+  function draw(event) {
+    if (event.session !== undefined) {
+      event.color = colorOf(event.session)
+      // The figure carries its customer's initials when the server knows who called, a letter otherwise.
+      event.slot = [...sessionColors.keys()].indexOf(event.session)
+      event.badge = event.user ? initials(event.user) : String.fromCharCode(65 + (event.slot % 26))
+    }
+    lastCall = performance.now()
+    touched = true
+    scene.onEvent(event)
+  }
+
+  let lastCall = -Infinity
+  const initials = (name) => name.split(' ').map((part) => part[0]).join('').slice(0, 2)
+
+  function onCall(call) {
+    if (call.run && call.session) runSessions.set(call.run, call.session)
+    show({
+      tool: call.tool,
+      channel: call.channel,
+      session: call.session,
+      client: call.client,
+      model: call.model,
+      why: call.errorMessage,
+      run: call.run,
+      user: call.user,
+      // The plain server has no analytics, but it does know which signed-in customer's token called.
+      token: lastRuns.find((run) => String(run.id) === call.run)?.customer?.email,
+      intent: call.intent,
+      args: call.args,
+      at: call.at,
+      durationMs: call.durationMs,
+      error: call.isError,
+      missing: call.tool === 'get_more_tools' ? call.intent || 'something this store cannot do yet' : undefined,
+    })
+  }
+
+  // A published copy has no server behind it. It reads one saved snapshot of a real session and
+  // shows that; nothing can be asked or started over there.
+  const STATIC = 'static' in document.body.dataset
+  const STATE = STATIC ? 'state.json' : '/state'
+
+  async function poll(seen) {
+    try {
+      const { toolCalls, runs } = await (await fetch(STATE)).json()
+      serverRuns = runs
+      showRuns(withExample())
+      const latest = toolCalls[0]?.seq ?? 0
+      if (!restored) {
+        // A session that was already run is taken in whole on load, with no ceremony: its calls go on
+        // record, and the level that is showing then tells them as it would have.
+        restored = true
+        const kept = new Set(runs.map((run) => String(run.id)))
+        restoring = true
+        toolCalls.filter((call) => kept.has(call.run)).reverse().forEach(onCall)
+        restoring = false
+        seen = latest
+        if (current?.level && !clientSide) retell(current.level)
+        playIfDue()
+      }
+      // A restarted server counts from zero again, so start over rather than wait to catch up.
+      if (seen === undefined || latest < seen) seen = latest
+      toolCalls.filter((call) => call.seq > seen).reverse().forEach(onCall)
+      seen = latest
+    } catch {
+      // The server is restarting or the network dropped; keep the map up and try again.
+    }
+    if (!STATIC) setTimeout(() => poll(seen), 300)
+  }
+
+  const promptsPanel = document.getElementById('prompts')
+  const promptsToggle = document.querySelector('.prompts-toggle')
+
+  // Sends a prompt to a real Claude agent on this laptop, pointed at whichever server the current view
+  // stands for. Its tool calls come back through the normal feed, so nothing on the map is simulated.
+  async function post(prompt, channel) {
+    const response = await fetch('/run', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ prompt, channel }),
+    })
+    const result = await response.json()
+    if (!response.ok) throw new Error(result.error)
+    return result
+  }
+
+  // A customer's request goes to both servers at once, as two separate agents: one talks to the plain
+  // server and one to the server with MCP Analytics. Each level of the talk shows its own server's run.
+  async function sendCustomer(prompt) {
+    await Promise.all([post(prompt, 'raw'), post(prompt, 'instrumented')])
+    detailRun = undefined
+  }
+
+  async function run(prompt, state, keepOpen, channel) {
+    state.textContent = 'Sent'
+    if (!keepOpen) togglePrompts()
+    try {
+      if (channel === 'developer') detailRun = (await post(prompt, channel)).id
+      else await sendCustomer(prompt)
+      setClaude({ hidden: false, min: false })
+    } catch (error) {
+      promptsError.textContent = error.message
+      promptsError.hidden = false
+      if (promptsPanel.hidden) togglePrompts()
+    } finally {
+      state.textContent = state.classList.contains('both') ? 'Run all' : 'Run'
+    }
+  }
+
+  const claude = document.querySelector('.claude')
+  const claudeList = claude.querySelector('ol')
+  const claudeMin = claude.querySelector('.min')
+  const runSessions = new Map()
+  let shownRuns = ''
+  let detailRun
+  let lastRuns = []
+  let agentBusy = false
+
+  // Open, the panel takes the right edge and the map is scaled to sit beside it. Minimised, it is a
+  // small tab and the map has the whole screen again.
+  function setClaude({ hidden = claude.hidden, min = claude.hasAttribute('data-min') }) {
+    claude.hidden = hidden
+    claude.toggleAttribute('data-min', min)
+    claudeMin.textContent = min ? '+' : '–'
+    claudeMin.setAttribute('aria-expanded', String(!min))
+    claudeMin.setAttribute('aria-label', min ? 'Show customers' : 'Minimise customers')
+    document.body.classList.toggle('beside-claude', !hidden && !min && onMap)
+    fit()
+  }
+  claudeMin.addEventListener('click', () => setClaude({ min: !claude.hasAttribute('data-min') }))
+
+  const closeRuns = (which) =>
+    fetch('/run/close', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(which) })
+
+  const MARKS = { calling: '⊙', ok: '✓', error: '✕' }
+  const STATUS = { running: 'working', done: 'ready', failed: 'failed' }
+  const node = (tag, cls, value) => {
+    const made = el(tag, cls)
+    if (value !== undefined) made.textContent = value
+    return made
+  }
+
+  function whoRow(run) {
+    const session = runSessions.get(String(run.id))
+    const row = node('div', 'who')
+    if (session && installed) row.style.setProperty('--session', `rgb(${colorOf(session)})`)
+    const developer = run.channel === 'developer'
+    const name = run.customer?.name ?? `Customer ${run.id}`
+    const num = node('span', developer ? 'num you' : 'num', developer ? 'you' : initials(name))
+    num.setAttribute('aria-label', developer ? 'You, the developer' : name)
+    const status = node('span', 'status', STATUS[run.status])
+    status.dataset.status = run.status
+    const words = node('div')
+    words.append(node('p', 'name', developer ? 'You, the developer' : name), node('p', 'said', run.prompt))
+    row.append(num, words, status)
+    return row
+  }
+
+  // The list: one row per customer with what they asked, whether their agent is still working, and
+  // just the store tools it has called. Picking a row opens that customer's whole conversation.
+  function customerRow(run) {
+    const li = node('li', 'customer')
+    const pick = node('button', 'pick')
+    pick.type = 'button'
+    pick.setAttribute('aria-label', `Open customer ${run.id}`)
+    const calls = node('span', 'calls')
+    for (const item of run.items) {
+      if (item.type !== 'tool' || unknownYet(item)) continue
+      const call = node('span', 'call', `${MARKS[item.state]} ${item.name}`)
+      call.dataset.state = item.state
+      calls.append(call)
+    }
+    pick.append(whoRow(run), calls)
+    pick.addEventListener('click', () => {
+      detailRun = run.id
+      showRuns()
+    })
+    const shut = node('button', 'shut', '×')
+    shut.type = 'button'
+    shut.setAttribute('aria-label', `Close customer ${run.id}`)
+    shut.addEventListener('click', () => closeRuns({ id: run.id }))
+    li.append(pick, shut)
+    return li
+  }
+
+  // What the customer's agent chose to send. The arguments the SDK adds for the server's benefit are
+  // left out here: they belong to the analytics view, not to the customer's conversation.
+  const sent = ({ context, conversation_id, llm_model, ...args } = {}) => args
+
+  // The built-in example is one conversation standing in for two. get_more_tools is a tool the SDK
+  // adds, so before level 3 the example must not show the agent calling it.
+  const unknownYet = (item) => item.type === 'tool' && item.name === 'get_more_tools' && (level < 3 || clientSide)
+
+  function conversation(run) {
+    const list = node('ol', 'talk')
+    // While a level is retelling this customer's errand, their actions are marked done, now or later.
+    const following = cursor?.run === String(run.id) ? cursor : undefined
+    let action = 0
+    for (const item of run.items) {
+      if (unknownYet(item)) continue
+      if (item.type === 'text') {
+        const [prose, chart] = charted(item.text)
+        if (chart) list.chart = chart
+        const say = node('li', 'say')
+        say.append(rich(prose))
+        if (following) say.dataset.later = ''
+        list.append(say)
+        continue
+      }
+      // The developer's agent reaches PostHog through one tool that takes a command. The queries are
+      // what matter; looking up how to use them is plumbing.
+      const asked = run.channel === 'developer' && String(item.input?.command ?? '').split(' ').filter((word) => word !== '--json')
+      if (asked && asked[0] !== 'call') continue
+      const li = node('li', 'use')
+      if (following && action === following.index) li.dataset.now = ''
+      if (following && action > following.index) li.dataset.later = ''
+      action += 1
+      li.dataset.state = item.state
+      li.append(
+        node('span', 'mark', MARKS[item.state]),
+        node('span', 'name', asked ? asked[1] : item.name),
+        node('span', 'args', asked ? asked.slice(2).join(' ') : JSON.stringify(sent(item.input)))
+      )
+      if (item.state === 'error' && item.output) li.append(node('span', 'back', item.output))
+      list.append(li)
+    }
+    return list
+  }
+
+  // An answer may end with the numbers behind it, as a block the page draws and does not print.
+  function charted(text) {
+    const block = text.match(/```chart\s*([\s\S]*?)```/)
+    const prose = text.replace(/```chart[\s\S]*?(```|$)/, '').trim()
+    try {
+      const data = block && JSON.parse(block[1])
+      return [prose, data?.bars?.length ? data : undefined]
+    } catch {
+      return [prose, undefined]
+    }
+  }
+
+  // Plain paragraphs, short lists and bold, built as elements so nothing in an answer is ever run.
+  function rich(text) {
+    const box = document.createDocumentFragment()
+    let list
+    for (const raw of text.split('\n')) {
+      const line = raw.trim()
+      if (!line) {
+        list = undefined
+        continue
+      }
+      const bullet = /^[-•]\s+/.test(line)
+      let target
+      if (bullet) {
+        list ??= box.appendChild(node('ul'))
+        target = list.appendChild(node('li'))
+      } else {
+        list = undefined
+        target = box.appendChild(node('p', /^what i would do next/i.test(line) ? 'next' : ''))
+      }
+      line
+        .replace(/^[-•]\s+/, '')
+        .split('**')
+        .forEach((part, i) => part && target.append(i % 2 ? node('strong', '', part) : part.replace(/`/g, '')))
+    }
+    return box
+  }
+
+  // One measure, one colour, and the number on every bar: there is nothing here to need a legend.
+  function drawChart({ title, bars }) {
+    const figure = node('figure', 'chart')
+    const top = Math.max(...bars.map((bar) => Number(bar.value) || 0), 1)
+    const rows = node('ol')
+    for (const bar of bars.slice(0, 5)) {
+      const row = node('li')
+      const fill = node('i')
+      fill.style.width = `${Math.max(2, ((Number(bar.value) || 0) / top) * 100)}%`
+      const track = node('span', 'track')
+      track.append(fill)
+      row.append(node('span', 'label', String(bar.label)), track, node('span', 'value', String(bar.value)))
+      rows.append(row)
+    }
+    figure.append(node('figcaption', '', String(title ?? '')), rows)
+    return figure
+  }
+
+  function customerDetail(run) {
+    const li = node('li', 'detail')
+    const back = node('button', 'back-to-list', '← All customers')
+    back.type = 'button'
+    back.addEventListener('click', () => {
+      detailRun = 'list'
+      showRuns()
+    })
+    const talk = conversation(run)
+    li.append(back, whoRow(run), talk)
+    if (talk.chart) {
+      li.classList.add('charted')
+      li.append(drawChart(talk.chart))
+    }
+    return li
+  }
+
+  // Customers of the server this view stands for. Each is its own Claude session with its own cart.
+  // Once analytics has tied a customer to a session, its number takes that session's colour, the
+  // same as its figure on the map.
+  function showRuns(all = lastRuns) {
+    lastRuns = all
+    agentBusy = all.some((run) => run.status === 'running')
+    // The developer's own questions sit with the instrumented server, since that is what they read.
+    // Each customer has two conversations, one with each server. Up to level 2 the one on screen is
+    // with the plain server; at level 3 it is the one with the instrumented server.
+    const side = level === 3 && !clientSide ? 'instrumented' : 'raw'
+    // On the developer's own stop the only conversation is theirs, with PostHog.
+    const runs = all.filter((run) => (asker ? run.channel === 'developer' : run.channel === 'developer' ? installed : run.channel === 'both' || run.channel === side))
+    const customers = runs.filter((run) => run.channel !== 'developer').length
+    // The latest conversation is open unless the list was asked for.
+    const open = runs.find((run) => run.id === detailRun) ?? (detailRun === 'list' ? undefined : runs.findLast((run) => asker || run.channel !== 'developer'))
+    const key = JSON.stringify([runs, installed, open?.id, clientSide, asker, level, [...runSessions]])
+    if (key === shownRuns) return
+    shownRuns = key
+    composer.querySelector('button').disabled = composerInput.disabled = agentBusy
+    if (!runs.length && !clientSide) return setClaude({ hidden: true })
+    // Sessions that were already running when the page loaded start as a tab, so they are not lost.
+    if (claude.hidden) setClaude({ hidden: false, min: !clientSide })
+    const whose = !open ? 'Customers' : open.channel === 'developer' ? 'Your side' : `${(open.customer?.name ?? 'The customer').split(' ')[0]}’s side`
+    claude.querySelector('h2').textContent = asker ? 'Your side' : clientSide && !open ? 'Priya’s side' : whose
+    claude.querySelector('.server').textContent =
+      asker || open?.channel === 'developer' ? 'You, asking PostHog about your server, from your own agent.'
+      : open || clientSide ? 'Her agent, on her machine. Your server never sees this conversation.'
+      : `${customers === 1 ? '1 customer' : customers + ' customers'}. Your server never sees this side.`
+    claude.toggleAttribute('data-detail', Boolean(open))
+    const empty = node('li', 'empty', 'Nothing asked yet.')
+    claudeList.replaceChildren(...(open ? [customerDetail(open)] : runs.length ? runs.map(customerRow) : [empty]))
+    const talk = claudeList.querySelector('.talk')
+    const now = talk?.querySelector('[data-now]')
+    if (now) talk.scrollTop = now.offsetTop - talk.offsetTop - talk.clientHeight / 3
+    else if (talk) talk.scrollTop = talk.scrollHeight
+  }
+  // Starting over closes every conversation, forgets their calls, and clears the screen.
+  claude.querySelector('.clear').addEventListener('click', async () => {
+    await closeRuns({ all: true })
+    serverRuns = []
+    detailRun = undefined
+    startOver()
+    composerInput.value = asker ? (askPrompts[0] ?? '') : storyPrompt
+    shownRuns = ''
+    showRuns(withExample())
+  })
+
+  // The customer's own words, typed where a customer would type them.
+  const composer = claude.querySelector('.composer')
+  const composerInput = composer.querySelector('input')
+  composer.addEventListener('submit', async (e) => {
+    e.preventDefault()
+    const prompt = composerInput.value.trim()
+    if (!prompt) return
+    composerInput.value = ''
+    try {
+      if (asker) detailRun = (await post(prompt, 'developer')).id
+      else await sendCustomer(prompt)
+    } catch (error) {
+      composerInput.value = error.message
+    }
+  })
+
+  // With no agent on hand, the built-in example fills the same conversation the customer would have.
+  let serverRuns = []
+  let exampleRun
+  const withExample = () => (exampleRun ? [...serverRuns, exampleRun] : serverRuns)
+  function exampleSaid(event, done, total) {
+    exampleRun ??= { id: 'example', channel: 'both', prompt: storyPrompt, customer: { name: 'Priya Raman' }, status: 'running', items: [] }
+    exampleRun.items.push({ type: 'tool', id: String(done), name: event.tool, input: event.args, state: event.error ? 'error' : 'ok', output: event.error })
+    if (done === total) {
+      exampleRun.status = 'done'
+      exampleRun.items.push({
+        type: 'text',
+        text: 'I couldn’t place the order: the store doesn’t ship to Brazil. The Hedgehog Hoodie is also sold out in medium, so I put a large in the cart. Nothing was charged.',
+      })
+    }
+    detailRun = undefined
+    showRuns(withExample())
+  }
+  let storyPrompt = ''
+  let askPrompts = []
+
+  function promptButton(text, channel) {
+    const button = el('button', 'prompt')
+    button.type = 'button'
+    const body = el('span')
+    body.textContent = text
+    const state = el('span', 'state')
+    state.textContent = 'Run'
+    button.append(body, state)
+    button.addEventListener('click', () => run(text, state, false, channel))
+    return button
+  }
+
+  const promptsError = el('p', 'prompts-error')
+  promptsError.hidden = true
+  promptsError.setAttribute('role', 'alert')
+
+  async function loadPrompts() {
+    const target = el('p', 'prompts-target')
+    const form = el('form', 'prompts-form')
+    const label = el('label')
+    label.textContent = 'Prompt from the room'
+    label.htmlFor = 'own-prompt'
+    const input = el('input')
+    input.id = 'own-prompt'
+    input.autocomplete = 'off'
+    const send = el('button')
+    send.type = 'submit'
+    send.textContent = 'Run'
+    form.append(label, input, send)
+    form.addEventListener('submit', (e) => {
+      e.preventDefault()
+      if (!input.value.trim()) return
+      run(input.value.trim(), send, false, asking ? 'developer' : undefined)
+      input.value = ''
+    })
+    promptsPanel.append(target, form, promptsError)
+    setInterval(() => {
+      target.textContent = asking
+        ? 'Asks PostHog about this server'
+        : 'Sends a real customer to both of your servers'
+    }, 300)
+
+    const { prompts, developerPrompts, products } = await (await fetch(STATE)).json()
+    for (const product of products) prices.set(product.id, product.priceUsd)
+    storyPrompt = prompts[0][1]
+    askPrompts = developerPrompts.map(([, text]) => text)
+    composerInput.value = asker ? askPrompts[0] : storyPrompt
+    composer.querySelector('.asks').replaceChildren(
+      ...askPrompts.map((text) => {
+        const pick = node('button', '', text)
+        pick.type = 'button'
+        pick.addEventListener('click', () => {
+          composerInput.value = text
+          composer.requestSubmit()
+        })
+        return pick
+      })
+    )
+    const groups = new Map()
+    for (const [tag, text] of prompts) groups.set(tag, [...(groups.get(tag) || []), text])
+    for (const [tag, texts] of groups) {
+      const section = el('section')
+      const heading = el('h3')
+      heading.textContent = tag
+      // Two customers at once is the point of a pair: their calls land mixed together in the log.
+      const both = el('button', 'both')
+      both.type = 'button'
+      both.textContent = 'Run all'
+      both.hidden = texts.length < 2
+      both.addEventListener('click', () => {
+        togglePrompts()
+        texts.forEach((text) => run(text, both, true))
+      })
+      heading.append(both)
+      section.append(heading, ...texts.map((text) => promptButton(text)))
+      promptsPanel.append(section)
+    }
+    // The builder's own question: a Claude that reads MCP Analytics through the PostHog MCP.
+    const ask = el('section', 'developer')
+    const title = el('h3')
+    title.textContent = 'ask as the developer'
+    ask.append(title, ...developerPrompts.map(([, text]) => promptButton(text, 'developer')))
+    promptsPanel.append(ask)
+  }
+  // On the developer stop the bar asks PostHog about the server; everywhere else it sends a customer.
+  let asking = false
+  function togglePrompts() {
+    promptsPanel.hidden = !promptsPanel.hidden
+    promptsToggle.setAttribute('aria-expanded', String(!promptsPanel.hidden))
+    if (!promptsPanel.hidden) promptsError.hidden = true
+  }
+  promptsToggle.addEventListener('click', togglePrompts)
+  loadPrompts()
+
+  mount()
+  setLevel(1)
+  let current
+  const cancels = []
+  function playIfDue() {
+    // The example is a stand-in for a real run, so it stays out of the way once there is one, and it
+    // waits until the page knows whether a saved session exists.
+    if (!restored || serverRuns.some((run) => run.channel !== 'developer')) return
+    if (!current?.example || !examples || played[current.example]) return
+    played[current.example] = true
+    let latest
+    cancels.push(
+      playExample(
+        (event) => show((latest = { ...event, run: 'example' })),
+        (done, total) => {
+          example = { done, total }
+          if (done) exampleSaid(latest, done, total)
+        }
+      )
+    )
+  }
+
+  // Examples off means only real calls reach the screen. The choice lives in the URL so R keeps it.
+  const examplesToggle = document.querySelector('.examples-toggle')
+  function setExamples(on) {
+    examples = on
+    examplesToggle.setAttribute('aria-pressed', String(on))
+    examplesToggle.querySelector('.state').textContent = on ? 'on' : 'off'
+    const url = new URL(location)
+    if (on) url.searchParams.delete('examples')
+    else url.searchParams.set('examples', 'off')
+    history.replaceState(null, '', url)
+    startOver()
+  }
+  // The screen starts clean: an empty log, no session cards, and a freshly drawn map, so what is
+  // showing afterwards is unambiguous.
+  function startOver() {
+    clearTimeout(telling)
+    abandon = undefined
+    cursor = undefined
+    cancels.splice(0).forEach((cancel) => cancel())
+    example = undefined
+    exampleRun = undefined
+    for (const key of Object.keys(played)) delete played[key]
+    held.length = unseen.length = seen.raw.length = seen.instrumented.length = 0
+    told.clear()
+    sessionColors.clear()
+    feed.reset()
+    touched = false
+    mount()
+    playIfDue()
+  }
+  examplesToggle.addEventListener('click', () => setExamples(!examples))
+  if (!examples) {
+    examplesToggle.setAttribute('aria-pressed', 'false')
+    examplesToggle.querySelector('.state').textContent = 'off'
+  }
+
+  const arrive = (stop, step, paint) => {
+    document.querySelector('.legend').toggleAttribute('data-compact', stop.level > 1)
+    paint()
+    feed.setReveal(stop.steps && stop.level ? step + 1 : 4)
+    promptsPanel.hidden = true
+    promptsToggle.setAttribute('aria-expanded', 'false')
+    const wasClient = clientSide
+    // Two stops are a conversation on its own, full screen: the customer's with her agent, and the
+    // developer's with PostHog.
+    clientSide = Boolean(stop.side)
+    asker = stop.side === 'developer'
+    document.body.toggleAttribute('data-client', clientSide)
+    document.body.toggleAttribute('data-asker', asker)
+    if (askPrompts.length) composerInput.value = asker ? askPrompts[0] : storyPrompt
+    onMap = stop.kind === 'caption' && !clientSide
+    // The customer's side is one open conversation. Crossing to the server keeps it open, docked.
+    if (clientSide) setClaude({ hidden: false, min: false })
+    else if (wasClient) setClaude({ hidden: !lastRuns.length, min: false })
+    else setClaude({})
+    // A stop only picks which view is showing. Nothing drawn so far is thrown away, and each example
+    // plays once, so stepping back and forth through the talk keeps everything. R starts over.
+    if (stop.level) setLevel(stop.level, stop !== current)
+    current = stop
+    shownRuns = ''
+    showRuns()
+    playIfDue()
+  }
+  // Crossing between the customer's side and the server's is the one move in the talk that is animated:
+  // the server's side fades in as the conversation settles at the edge.
+  const story = createStory(document.querySelector('.story'), (stop, step, paint) => {
+    const crossing = Boolean(stop.side) !== clientSide && started
+    started = true
+    arrive(stop, step, paint)
+    if (!crossing) return
+    document.body.dataset.crossing = stop.side ? 'client' : 'server'
+    clearTimeout(crossed)
+    crossed = setTimeout(() => delete document.body.dataset.crossing, 600)
+  })
+
+  // Presenter cue, bottom right: busy while calls are still arriving or walkers are still moving.
+  setInterval(() => {
+    if (!onMap && !clientSide) return story.setCue('', false)
+    if (agentBusy) return story.setCue('Claude is working', true)
+    if (cursor) return story.setCue('retelling', true)
+    if (example && example.done < example.total) return story.setCue(`example ${example.done}/${example.total}`, true)
+    if (scene.busy() || performance.now() - lastCall < 2500) return story.setCue('still moving', true)
+    story.setCue('ready →', false)
+  }, 300)
+  if (scripted) startStream((event) => show({ ...event, channel: 'instrumented' }))
+  else poll()
+
+  let resizing
+  window.addEventListener('resize', () => {
+    clearTimeout(resizing)
+    resizing = setTimeout(fit, 200)
+  })
+  console.log('%cDeck shortcuts', 'font-weight: bold; font-size: 14px')
+  console.table({
+    'Right, Space, Page Down': 'Next stop, or the next press on a stop with steps',
+    'Left, Page Up': 'Previous stop',
+    F: 'Full screen (Esc leaves it)',
+    S: 'Speaker notes in their own window',
+    N: 'Speaker notes on the deck, for rehearsing',
+    D: 'Dark or light',
+    M: 'Sound off or on',
+    E: 'Example calls off or on',
+    C: 'Fold or unfold the customer conversation',
+    P: 'Prepared prompts bar',
+    R: 'Reload',
+  })
+
+  document.addEventListener('keydown', (e) => {
+    if (e.metaKey || e.ctrlKey || e.altKey || e.target.matches?.('input, textarea')) return
+    if (e.key === 'p' || e.key === 'P') togglePrompts()
+    if (e.key === 'r' || e.key === 'R') location.reload()
+    if (e.key === 'm' || e.key === 'M') story.setCue(sound.toggle() ? 'sound off' : 'sound on', false)
+    // Full screen takes the address bar and tabs off the projector. Esc leaves it.
+    if (e.key === 'f' || e.key === 'F') document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen()
+    if (e.key === 'e' || e.key === 'E') setExamples(!examples)
+    if (e.key === 'd' || e.key === 'D') {
+      const dark = document.documentElement.dataset.theme !== 'dark'
+      dark ? (document.documentElement.dataset.theme = 'dark') : delete document.documentElement.dataset.theme
+      try {
+        localStorage.setItem('merch-theme', dark ? 'dark' : 'light')
+      } catch {}
+    }
+    if ((e.key === 'c' || e.key === 'C') && !claude.hidden) claudeMin.click()
+  })
+</script>
+</body>
+</html>
