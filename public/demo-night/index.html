@@ -276,6 +276,9 @@
   body[data-crossing="server"] .claude { animation: dock-in 420ms cubic-bezier(0.32, 0.72, 0, 1) backwards; }
   body[data-crossing="client"] :is(.claude, .story-caption) { animation: fade-in 320ms ease-out backwards; }
   @keyframes fade-in { from { opacity: 0; } }
+  /* Each stop arrives with one short rise, so a press reads as a step forward and not a cut. */
+  .story-card > :not(.story-logo), .story-caption { animation: stop-in 240ms cubic-bezier(0.32, 0.72, 0, 1) backwards; }
+  @keyframes stop-in { from { opacity: 0; transform: translateY(10px); } }
   @keyframes dock-in { from { opacity: 0; transform: translateX(-90px); } }
   .composer { display: none; }
   /* While a level retells the errand, the action being told stands out and what has not happened yet waits. */
@@ -537,12 +540,12 @@
     .prompt, .prompts-form button, .story-nav button, .claude button { transition: none; }
     .legend .stamp.on, .story-nav .cue[data-busy]::before, .terminal li.new, .visit li.new, .claude .use[data-state="calling"] .mark, .customer .call[data-state="calling"], .who .status[data-status="running"]::before { animation: none; }
     .base, .tag, .chip, .terminal ol { transition: none; }
-    .list li.enter, .board .enter, .story .code code, .story .stats li { animation: none; }
+    .list li.enter, .board .enter, .story .code code, .story .stats li, .story-card > :not(.story-logo), .story-caption { animation: none; }
     body[data-crossing] :is(#stage, .feed, .legend, .story-caption, .claude) { animation: none; }
   }
 </style>
 </head>
-<body data-static>
+<body>
 <!-- Dark mode's range: after the page is turned over, black lands on PostHog's ink (#23251d) and white on its paper (#fdfdf8). The second filter takes that back off, for pictures. -->
 <svg width="0" height="0" style="position: absolute" aria-hidden="true">
   <filter id="dark-range" color-interpolation-filters="sRGB">
@@ -907,14 +910,28 @@
     })
   }
 
-  // A published copy has no server behind it. It reads one saved snapshot of a real session and
-  // shows that; nothing can be asked or started over there.
-  const STATIC = 'static' in document.body.dataset
-  const STATE = STATIC ? 'state.json' : '/state'
+  // The same page runs two ways. Served by the demo server it is live: real agents run and the state
+  // comes from the server. Anywhere else there is no /state to answer, so it shows one saved snapshot
+  // of a real session, and nothing can be asked or started over.
+  let live
+  async function readState() {
+    live ??= (async () => {
+      try {
+        const response = await fetch('/state', { signal: AbortSignal.timeout(1500) })
+        return response.ok && (response.headers.get('content-type') ?? '').includes('json')
+      } catch {
+        return false
+      }
+    })().then((answered) => {
+      document.body.toggleAttribute('data-static', !answered)
+      return answered
+    })
+    return (await fetch((await live) ? '/state' : 'state.json')).json()
+  }
 
   async function poll(seen) {
     try {
-      const { toolCalls, runs } = await (await fetch(STATE)).json()
+      const { toolCalls, runs } = await readState()
       serverRuns = runs
       showRuns(withExample())
       const latest = toolCalls[0]?.seq ?? 0
@@ -937,7 +954,7 @@
     } catch {
       // The server is restarting or the network dropped; keep the map up and try again.
     }
-    if (!STATIC) setTimeout(() => poll(seen), 300)
+    if (await live) setTimeout(() => poll(seen), 300)
   }
 
   const promptsPanel = document.getElementById('prompts')
@@ -1298,7 +1315,7 @@
         : 'Sends a real customer to both of your servers'
     }, 300)
 
-    const { prompts, developerPrompts, products } = await (await fetch(STATE)).json()
+    const { prompts, developerPrompts, products } = await readState()
     for (const product of products) prices.set(product.id, product.priceUsd)
     storyPrompt = prompts[0][1]
     askPrompts = developerPrompts.map(([, text]) => text)
