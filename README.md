@@ -1,6 +1,6 @@
-# MCP analytics: an 8-bit tale
+# Notes on MCP Analytics
 
-A four-minute pixel-art story about product analytics for AI agents. Every frame is drawn live in the browser from code, so the site has no video file.
+What I learn while building MCP Analytics at PostHog, one page at a time.
 
 Live: https://lucasheriques.github.io/mcp-analytics/
 
@@ -10,8 +10,11 @@ This site collects what I learn while building MCP Analytics. Each page is its o
 
 | Page | What it is |
 | --- | --- |
-| [`/`](https://lucasheriques.github.io/mcp-analytics/) | The 8-bit tale: a four-minute pixel-art story about product analytics for AI agents |
+| [`/`](https://lucasheriques.github.io/mcp-analytics/) | The home page: one real visit to an MCP server that you can look at with no observability, with traces, and with MCP Analytics, plus a card for each page |
+| [`/tale/`](https://lucasheriques.github.io/mcp-analytics/tale/) | The 8-bit tale: a four-minute pixel-art story about product analytics for AI agents. Every frame is drawn live in the browser from code, so there is no video file |
 | [`/demo-night/`](https://lucasheriques.github.io/mcp-analytics/demo-night/) | The MCP Analytics Demo Night talk (Hogpatch, Nov 19 2026): one customer's errand on a merch store MCP server, seen with no observability, with traces, and with MCP Analytics |
+
+The home page and the tale are one Vite app with two HTML entries (`index.html` and `tale/index.html`). The tale used to be the home page, so its old links still open it from the root: `?embed=1`, `?chapter=` and `?t=`. To add a page, add its card to `PAGES` in `src/Home.tsx`.
 
 `public/demo-night/` is a built copy, not source. It is a static page with one saved snapshot of a real agent session (`state.json`), so nothing in it calls a server. Arrow keys or Space move through it, `D` switches dark and light, `N` shows the speaker notes.
 

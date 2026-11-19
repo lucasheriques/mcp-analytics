@@ -7,6 +7,10 @@ export const AUTHOR_URL = 'https://github.com/lucasheriques'
 export const REPO_URL = 'https://github.com/lucasheriques/mcp-analytics'
 // A release asset keeps the 36 MB file out of the repo. To replace it, publish a new release with a file of the same name.
 export const VIDEO_DOWNLOAD_URL = `${REPO_URL}/releases/latest/download/mcp-analytics-an-8-bit-tale.mp4`
+// Pages of this site. Vite's base path differs between the deployed site and local runs.
+export const HOME_PATH = import.meta.env.BASE_URL
+export const TALE_PATH = `${HOME_PATH}tale/`
+export const DEMO_NIGHT_PATH = `${HOME_PATH}demo-night/`
 export const SETUP_COMMAND = 'npx -y @posthog/wizard@latest mcp-analytics'
 
 // Opens in a new tab so it also works from inside an iframe.

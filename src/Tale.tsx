@@ -1,0 +1,95 @@
+import React from 'react'
+import { Logo } from '@posthog/brand/logo'
+import Comments from './Comments'
+import EmbedSection from './EmbedSection'
+import InstallSection from './InstallSection'
+import { IconGitHub } from './icons'
+import { AUTHOR_URL, ExternalLink, HOME_PATH, POSTHOG_HOME, POSTHOG_MCP_ANALYTICS, REPO_URL } from './links'
+import { CHAPTERS } from './player'
+import ThemeToggle from './ThemeToggle'
+import { FPS, FRAMES } from './timeline'
+import Video from './Video'
+import ViewCount from './ViewCount'
+
+const params = new URLSearchParams(window.location.search)
+
+// ?chapter=3 starts at that chapter, ?t=90 starts at 90 seconds. Neither autoplays, because browsers block sound until a click.
+function initialFrame(): number {
+    const chapter = Number(params.get('chapter'))
+    if (params.has('chapter') && CHAPTERS[chapter]) return CHAPTERS[chapter].start
+    const seconds = Number(params.get('t'))
+    return params.has('t') && seconds > 0 ? Math.min(FRAMES - 1, Math.round(seconds * FPS)) : 0
+}
+
+export function TaleEmbed(): JSX.Element {
+    return (
+        <div className="h-full">
+            <Video fill initialFrame={initialFrame()} />
+        </div>
+    )
+}
+
+export default function Tale(): JSX.Element {
+    return (
+        <main className="mx-auto flex min-h-full max-w-5xl flex-col gap-10 px-4 py-8">
+            <div className="flex flex-col gap-5">
+                <header className="flex flex-wrap items-end justify-between gap-3">
+                    <div>
+                        <a href={HOME_PATH} className="mb-3 block text-sm text-muted-fg underline hover:text-fg">
+                            All pages
+                        </a>
+                        <ExternalLink href={POSTHOG_HOME} aria-label="PostHog" className="mb-2 inline-block text-fg">
+                            <Logo variant="gradient" size={112} className="dark:hidden" />
+                            <Logo variant="mono" size={112} className="hidden dark:block" />
+                        </ExternalLink>
+                        <h1 className="text-2xl font-bold leading-tight">MCP analytics: an 8-bit tale</h1>
+                        <p className="text-muted-fg">
+                            A four-minute pixel-art story about product analytics for AI agents.
+                        </p>
+                        <p className="text-sm text-muted-fg">
+                            Made by{' '}
+                            <ExternalLink href={AUTHOR_URL} className="underline hover:text-fg">
+                                Lucas Faria
+                            </ExternalLink>
+                            , who works on MCP analytics at PostHog.
+                            <ViewCount />
+                        </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <ExternalLink
+                            href={REPO_URL}
+                            className="flex items-center gap-1.5 rounded-lg border border-line px-3 py-1.5 text-sm font-semibold hover:border-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand"
+                        >
+                            <IconGitHub className="size-4" />
+                            GitHub
+                        </ExternalLink>
+                        <ThemeToggle />
+                        <ExternalLink
+                            href={POSTHOG_MCP_ANALYTICS}
+                            className="rounded-lg bg-brand px-3 py-1.5 text-sm font-semibold text-on-brand hover:bg-brand-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fg"
+                        >
+                            PostHog MCP analytics
+                        </ExternalLink>
+                    </div>
+                </header>
+                <Video initialFrame={initialFrame()} />
+            </div>
+            <InstallSection />
+            <Comments />
+            <EmbedSection />
+            <footer className="flex flex-col gap-1 border-t border-line pt-6 text-sm text-muted-fg">
+                <p>
+                    Curious about the product? Read about{' '}
+                    <ExternalLink href={POSTHOG_MCP_ANALYTICS} className="underline hover:text-fg">
+                        PostHog MCP analytics
+                    </ExternalLink>
+                    . The{' '}
+                    <ExternalLink href={REPO_URL} className="underline hover:text-fg">
+                        code behind this video
+                    </ExternalLink>{' '}
+                    is on GitHub.
+                </p>
+            </footer>
+        </main>
+    )
+}
