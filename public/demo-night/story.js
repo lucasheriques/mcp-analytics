@@ -244,7 +244,7 @@ const STOPS = [
         tiles: [
             ['Already in the beta?', 'Nothing changes in your setup'],
             ['One command', 'Wrap your server and go'],
-            ['Ask anywhere', 'MCP client, PostHog AI or the API'],
+            ['Ask anywhere', 'MCP client, PostHog AI or the UI'],
         ],
         art: 'art/rocket.svg',
     },
