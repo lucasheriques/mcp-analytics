@@ -292,8 +292,9 @@
      server is on screen until the talk crosses over. */
   body[data-client] :is(.feed, .legend, .prompts-toggle, .prompts) { display: none; }
   body[data-client] #stage { visibility: hidden; }
-  body[data-client] .story-caption { left: max(10vw, 24px); }
-  body[data-client] .claude { inset: 150px max(10vw, 24px) 84px; width: auto; grid-template-rows: auto 1fr auto; }
+  /* On the customer's and the developer's stops the conversation is the whole screen. Its own header says whose side this is, so the stop's caption steps aside. */
+  body[data-client] .story-caption { display: none; }
+  body[data-client] .claude { inset: 20px 24px 68px; width: auto; grid-template-rows: auto 1fr auto; }
   body[data-client] .claude :is(.min, .back-to-list) { display: none; }
   body[data-client] .claude header { padding: 14px 20px; }
   body[data-client] .claude h2 { font-size: 26px; }
@@ -312,7 +313,6 @@
   .composer .asks { grid-column: 1 / -1; display: none; flex-wrap: wrap; gap: 8px; }
   body[data-asker] .composer .asks { display: flex; }
   /* The developer's answer is denser than a customer's, so it gets the whole window: what was asked and found on the left, the numbers as a chart on the right. */
-  body[data-asker] .claude { inset: 108px 24px 76px; }
   body[data-asker] .detail.charted { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); column-gap: 28px; }
   body[data-asker] .detail.charted .who { grid-column: 1 / -1; }
   body[data-asker] .detail.charted .chart { align-self: start; }
