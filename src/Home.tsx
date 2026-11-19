@@ -31,7 +31,7 @@ const PAGES: Page[] = [
     {
         href: DEMO_NIGHT_PATH,
         kind: 'Talk you can click through',
-        title: 'One customer, three levels of sight',
+        title: 'One customer, seen three ways',
         about: 'The talk I gave at MCP Analytics Demo Night. A real agent tries to buy a hoodie from a merch store MCP server, and you watch it with no observability, with traces, and with MCP Analytics.',
         how: '16 stops. Arrow keys or Space to move.',
         open: 'Open the talk',
@@ -158,7 +158,7 @@ export default function Home(): JSX.Element {
                         <PageCard key={page.href} page={page} />
                     ))}
                 </div>
-                <p className="text-sm text-muted-fg">I add a page when I learn something worth one.</p>
+                <p className="text-sm text-muted-fg">I’ll add pages here as I learn more.</p>
             </section>
 
             <InstallSection />
