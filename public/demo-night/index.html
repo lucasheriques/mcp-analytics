@@ -387,8 +387,6 @@
   .claude .say ul { padding-left: 1.1em; display: grid; gap: 0.25em; }
   .claude .say .next { margin-top: 0.7em; padding: 8px 12px; border-left: 4px solid var(--brand); border-radius: 0 6px 6px 0; background: rgba(245, 78, 0, 0.07); font-weight: 600; }
   .chart { margin: 0; padding: 14px 16px 16px; border: 2px solid #151b2e; border-radius: 12px; box-shadow: 4px 4px 0 #151b2e; background: #fffdf7; }
-  .story .charts { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: clamp(12px, 1.4vw, 22px); width: 100%; }
-  .story .charts li { grid-template-columns: minmax(0, 9.5em) minmax(0, 1fr) auto; }
   .chart figcaption { margin-bottom: 12px; font: 700 clamp(15px, 1.4vw, 21px)/1.25 "Iowan Old Style", "Charter", "Georgia", serif; text-wrap: balance; }
   .chart ol { list-style: none; padding: 0; display: grid; gap: 10px; }
   .chart li { display: grid; grid-template-columns: minmax(0, 11em) minmax(0, 1fr) auto; align-items: center; gap: 10px; font: 500 clamp(13px, 1.1vw, 17px)/1.2 var(--font); }
@@ -467,7 +465,6 @@
   .board .detail { color: rgba(21, 27, 46, 0.6); font-size: 13px; }
   .board .a:has(.unknown) { grid-template-columns: auto 1fr; align-items: baseline; gap: 8px; }
   .board .known { font-weight: 600; }
-  .board .q[data-wait] { visibility: hidden; }
   /* Level 1 has no traces, so the map shows the server and nothing about its calls. */
   body[data-level="1"] #stage .before { visibility: hidden; }
   body[data-level="1"] .legend li.traced { display: none; }
@@ -673,9 +670,13 @@
   // level recorded of it. That pairing, action by action, is the point of the talk.
   // Settles a telling that was cut short, so what it had not yet shown is still on record.
   let abandon
+  // A level arrives quiet, with its map and an empty log, so there is time to explain what is on
+  // screen. The next press calls this and the errand starts.
+  let begin
   function retell(value) {
     abandon?.()
     clearTimeout(telling)
+    begin = undefined
     cursor = undefined
     const channel = value === 3 ? 'instrumented' : 'raw'
     const events = seen[channel].slice()
@@ -707,6 +708,7 @@
     // Leaving before the story is over, even before its first action, ends it at once: nothing of
     // it stays in the air, and the rest is recorded plainly.
     abandon = () => {
+      begin = undefined
       clearTimeout(telling)
       for (const chip of document.querySelectorAll('.spark')) chip.remove()
       if (inFlight) record(inFlight)
@@ -755,8 +757,12 @@
       )
       if (!walked) telling = setTimeout(next, PACE[value])
     }
-    // The analytics map takes a few seconds to colour in the first time, and journeys wait for it.
-    telling = setTimeout(next, value === 3 ? 4200 : 500)
+    const ready = performance.now()
+    begin = () => {
+      begin = undefined
+      // The analytics map takes a few seconds to colour in the first time, and journeys wait for it.
+      telling = setTimeout(next, Math.max(300, (value === 3 ? 4200 : 0) - (performance.now() - ready)))
+    }
   }
   // Slow enough to read each action as it happens. At level 3 this is the least an action takes: its
   // figure has to walk there, and a long walk takes longer.
@@ -1005,7 +1011,11 @@
         toolCalls.filter((call) => kept.has(call.run)).reverse().forEach(onCall)
         restoring = false
         seen = latest
-        if (current?.level && !clientSide) retell(current.level)
+        if (current?.level && !clientSide) {
+          retell(current.level)
+          // A press that came before the session had loaded already asked for the errand.
+          if (pressed > 1) begin?.()
+        }
         playIfDue()
       }
       // A restarted server counts from zero again, so start over rather than wait to catch up.
@@ -1217,7 +1227,7 @@
   }
 
   // One measure, one colour, and the number on every bar: there is nothing here to need a legend.
-  function drawChart({ title, bars, unit = '' }) {
+  function drawChart({ title, bars }) {
     const figure = node('figure', 'chart')
     const top = Math.max(...bars.map((bar) => Number(bar.value) || 0), 1)
     const rows = node('ol')
@@ -1227,7 +1237,7 @@
       fill.style.width = `${Math.max(2, ((Number(bar.value) || 0) / top) * 100)}%`
       const track = node('span', 'track')
       track.append(fill)
-      row.append(node('span', 'label', String(bar.label)), track, node('span', 'value', String(bar.value) + unit))
+      row.append(node('span', 'label', String(bar.label)), track, node('span', 'value', String(bar.value)))
       rows.append(row)
     }
     figure.append(node('figcaption', '', String(title ?? '')), rows)
@@ -1467,6 +1477,7 @@
   function startOver() {
     clearTimeout(telling)
     abandon = undefined
+    begin = undefined
     cursor = undefined
     cancels.splice(0).forEach((cancel) => cancel())
     example = undefined
@@ -1486,11 +1497,13 @@
     examplesToggle.querySelector('.state').textContent = 'off'
   }
 
+  // How many presses the current stop has had.
+  let pressed = 1
   const arrive = (stop, step, paint) => {
+    pressed = step
     if (!stop.level) abandon?.()
     document.querySelector('.legend').toggleAttribute('data-compact', stop.level > 1)
     paint()
-    feed.setReveal(stop.steps && stop.level ? step + 1 : 4)
     promptsPanel.hidden = true
     promptsToggle.setAttribute('aria-expanded', 'false')
     const wasClient = clientSide
@@ -1509,6 +1522,7 @@
     // A stop only picks which view is showing. Nothing drawn so far is thrown away, and each example
     // plays once, so stepping back and forth through the talk keeps everything. R starts over.
     if (stop.level) setLevel(stop.level, stop !== current)
+    if (stop === current && step > 1) begin?.()
     current = stop
     shownRuns = ''
     showRuns()
@@ -1530,6 +1544,7 @@
   setInterval(() => {
     if (!onMap && !clientSide) return story.setCue('', false)
     if (agentBusy) return story.setCue('Claude is working', true)
+    if (begin && onMap) return story.setCue('→ plays it', false)
     if (cursor) return story.setCue('retelling', true)
     if (example && example.done < example.total) return story.setCue(`example ${example.done}/${example.total}`, true)
     if (scene.busy() || performance.now() - lastCall < 2500) return story.setCue('still moving', true)
